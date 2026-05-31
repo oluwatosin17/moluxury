@@ -1,13 +1,3 @@
-type SoundType =
-  | "like"
-  | "unlike"
-  | "add-to-cart"
-  | "tab"
-  | "menu-open"
-  | "menu-close"
-  | "button"
-  | "remove"
-  | "search";
 
 function ctx(): AudioContext | null {
   try {

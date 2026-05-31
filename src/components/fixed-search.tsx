@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search2Line, ArrowLeftLine, ArrowRightLine } from "@mingcute/react";
-import { playSearch, playTab, playButton } from "@/lib/sound";
+import { playSearch, playTab } from "@/lib/sound";
 
 interface Product {
   name: string;

@@ -89,7 +89,7 @@ export default function Navbar() {
             <button
               ref={heartBtnRef}
               aria-label="Wishlist"
-              onClick={() => { playButton(); isWishlistOpen ? closeWishlist() : openWishlist(); }}
+              onClick={() => { playButton(); if (isWishlistOpen) { closeWishlist(); } else { openWishlist(); } }}
               className="relative hover:opacity-70 transition-opacity cursor-pointer"
             >
               <HeartLine size={18} color={iconColor} />
