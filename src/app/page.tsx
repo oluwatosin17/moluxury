@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import HeroSection from "@/components/hero-section";
+
+export const metadata: Metadata = {
+  title: "MoLuxury | Premium Human Hair Wigs & Luxury Hair Services",
+  description:
+    "Discover premium human hair wigs, luxury hair installations, wig revamping, consultations, and bespoke hair experiences crafted for elegance and confidence.",
+  alternates: { canonical: "/" },
+};
 import MoodSection from "@/components/mood-section";
 import NewCollectionSection from "@/components/new-collection-section";
 import SignaturePiecesSection from "@/components/signature-pieces-section";

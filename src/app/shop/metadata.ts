@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ShopClient from "./client";
 
 export const metadata: Metadata = {
   title: "Shop All Wigs",
@@ -14,7 +13,3 @@ export const metadata: Metadata = {
     images: [{ url: "/og-default.jpg", width: 1200, height: 630 }],
   },
 };
-
-export default function ShopPage() {
-  return <ShopClient />;
-}

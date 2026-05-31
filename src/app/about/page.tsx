@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+
+export const metadata: Metadata = {
+  title: "About MoLuxury | Luxury Hair Craftsmanship & Premium Wig Experiences",
+  description:
+    "MoLuxury exists for the woman who knows that true beauty is intentional. Hand-finished wigs and luxury studio services designed in Lagos and worn everywhere.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About MoLuxury | Luxury Hair Craftsmanship",
+    description:
+      "MoLuxury exists for the woman who knows that true beauty is intentional. Handcrafted wigs and luxury services rooted in precision and personal expression.",
+    url: "/about",
+    images: [{ url: "/og-default.jpg", width: 1200, height: 630 }],
+  },
+};
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import WishlistOverlay from "@/components/wishlist-overlay";
