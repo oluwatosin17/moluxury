@@ -19,7 +19,7 @@ const interTight = Inter_Tight({
   display: "swap",
 });
 
-const BASE_URL = "https://moluxury-obalanatosin16-gmailcoms-projects.vercel.app";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://moluxury.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),

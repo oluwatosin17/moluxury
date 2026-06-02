@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { products } from "@/lib/products";
 
-const BASE_URL = "https://moluxury-obalanatosin16-gmailcoms-projects.vercel.app";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://moluxury.vercel.app";
 
 const SERVICE_SLUGS = [
   "wig-styling",

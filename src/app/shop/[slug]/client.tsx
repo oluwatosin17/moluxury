@@ -115,7 +115,7 @@ export default function ProductClient({ params: serverParams }: { params?: { slu
     playAddToCart();
   };
 
-  const BASE_URL = "https://moluxury-obalanatosin16-gmailcoms-projects.vercel.app";
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://moluxury.vercel.app";
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
