@@ -35,6 +35,8 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
   const [cats, setCats]               = useState<string[]>(product?.category_slugs ?? []);
   const [lengths, setLengths]         = useState<string[]>(product?.available_lengths ?? DEFAULT_LENGTHS);
   const [densities, setDensities]     = useState<string[]>(product?.available_densities ?? DEFAULT_DENSITIES);
+  const [customLengthInput, setCustomLengthInput]   = useState("");
+  const [customDensityInput, setCustomDensityInput] = useState("");
   const [texture, setTexture]         = useState(product?.texture ?? "");
   const [capType, setCapType]         = useState(product?.cap_type ?? "HD Transparent Lace");
   const [origin, setOrigin]           = useState(product?.origin ?? "100% Virgin Human Hair");
@@ -69,6 +71,18 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
   }
   function toggleDensity(d: string) {
     setDensities(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  }
+  function addCustomLength() {
+    const v = customLengthInput.trim();
+    if (!v || lengths.includes(v)) { setCustomLengthInput(""); return; }
+    setLengths(prev => [...prev, v]);
+    setCustomLengthInput("");
+  }
+  function addCustomDensity() {
+    const v = customDensityInput.trim();
+    if (!v || densities.includes(v)) { setCustomDensityInput(""); return; }
+    setDensities(prev => [...prev, v]);
+    setCustomDensityInput("");
   }
 
   function showToast(msg: string, ok = true) {
@@ -266,36 +280,99 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
         {/* Section 5 — Variants */}
         <section className="space-y-5">
           <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Available Variants</h2>
+
+          {/* Lengths */}
           <div className="space-y-3">
             <p className="font-inter-tight text-[12px] text-[#888078] uppercase tracking-[1px]">Lengths</p>
             <div className="flex flex-wrap gap-2">
-              {DEFAULT_LENGTHS.map(l => (
-                <button
-                  key={l} type="button"
-                  onClick={() => toggleLength(l)}
-                  className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
-                    lengths.includes(l)
-                      ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
-                      : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
-                  }`}
-                >{l}</button>
-              ))}
+              {/* Show all: defaults first, then any custom values not in defaults */}
+              {Array.from(new Set([...DEFAULT_LENGTHS, ...lengths])).map(l => {
+                const isSelected = lengths.includes(l);
+                const isCustom = !DEFAULT_LENGTHS.includes(l);
+                return (
+                  <div key={l} className="relative flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => toggleLength(l)}
+                      className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
+                          : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
+                      } ${isCustom && isSelected ? "pr-6" : ""}`}
+                    >{l}</button>
+                    {isCustom && isSelected && (
+                      <button
+                        type="button"
+                        onClick={() => setLengths(prev => prev.filter(x => x !== l))}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#c9a96e]/60 hover:text-[#c9a96e] leading-none cursor-pointer text-[10px]"
+                      >✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Add custom length */}
+            <div className="flex items-center gap-2">
+              <input
+                value={customLengthInput}
+                onChange={e => setCustomLengthInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCustomLength())}
+                placeholder='e.g. 30" or 10"'
+                className="bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-3 py-1.5 font-inter-tight text-[12px] text-[#e8e4df] placeholder:text-[#888078]/50 outline-none w-32 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={addCustomLength}
+                disabled={!customLengthInput.trim()}
+                className="px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.15)] font-inter-tight text-[12px] text-[#888078] hover:border-[#c9a96e]/50 hover:text-[#c9a96e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >+ Add</button>
             </div>
           </div>
+
+          {/* Densities */}
           <div className="space-y-3">
             <p className="font-inter-tight text-[12px] text-[#888078] uppercase tracking-[1px]">Densities</p>
             <div className="flex flex-wrap gap-2">
-              {DEFAULT_DENSITIES.map(d => (
-                <button
-                  key={d} type="button"
-                  onClick={() => toggleDensity(d)}
-                  className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
-                    densities.includes(d)
-                      ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
-                      : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
-                  }`}
-                >{d}</button>
-              ))}
+              {Array.from(new Set([...DEFAULT_DENSITIES, ...densities])).map(d => {
+                const isSelected = densities.includes(d);
+                const isCustom = !DEFAULT_DENSITIES.includes(d);
+                return (
+                  <div key={d} className="relative flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => toggleDensity(d)}
+                      className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
+                          : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
+                      } ${isCustom && isSelected ? "pr-6" : ""}`}
+                    >{d}</button>
+                    {isCustom && isSelected && (
+                      <button
+                        type="button"
+                        onClick={() => setDensities(prev => prev.filter(x => x !== d))}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#c9a96e]/60 hover:text-[#c9a96e] leading-none cursor-pointer text-[10px]"
+                      >✕</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Add custom density */}
+            <div className="flex items-center gap-2">
+              <input
+                value={customDensityInput}
+                onChange={e => setCustomDensityInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCustomDensity())}
+                placeholder="e.g. 220% or 300%"
+                className="bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-3 py-1.5 font-inter-tight text-[12px] text-[#e8e4df] placeholder:text-[#888078]/50 outline-none w-32 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={addCustomDensity}
+                disabled={!customDensityInput.trim()}
+                className="px-3 py-1.5 rounded-full border border-[rgba(255,255,255,0.15)] font-inter-tight text-[12px] text-[#888078] hover:border-[#c9a96e]/50 hover:text-[#c9a96e] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >+ Add</button>
             </div>
           </div>
         </section>

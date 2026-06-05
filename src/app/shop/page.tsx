@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ShopClient from "./client";
+import { getAllProducts } from "@/lib/supabase/storefront";
 
 export const metadata: Metadata = {
   title: "Shop All Wigs",
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ShopPage() {
-  return <ShopClient />;
+export default async function ShopPage() {
+  const products = await getAllProducts();
+  return <ShopClient products={products} />;
 }
