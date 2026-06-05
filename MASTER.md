@@ -1,6 +1,6 @@
-# MASTER.md — MoLuxury Project Continuation File
-# Last updated: June 2026 | Session: Admin CMS + Supabase build + Cloudinary decision
-# Use this file at the start of every new Claude session
+# MASTER.md — MoLuxury Single Source of Truth
+# Last updated: June 2026 | Covers all sessions to date
+# READ THIS ENTIRE FILE before writing a single line of code
 
 ---
 
@@ -16,307 +16,189 @@ Repo: https://github.com/oluwatosin17/moluxury  (local: ~/moluxury)
 Live: https://moluxury.vercel.app
 Admin: https://moluxury.vercel.app/admin
 
-Stack: Next.js 14 App Router · TypeScript · Tailwind · Supabase · Resend · Vercel
-No CMS — products are in Supabase DB (not products.ts anymore)
+Stack: Next.js 14.2 · TypeScript · Tailwind · Supabase · Resend · Vercel · Cloudinary
 
 Task today: [DESCRIBE YOUR TASK]
 ```
 
 ---
 
-## 1. WHAT HAS BEEN BUILT
+## 1. WHAT IS BUILT AND CONFIRMED WORKING
 
-### 1.1 — Storefront (complete, deployed, working)
+### 1.1 — Storefront (live, deployed, reads from Supabase)
 
-A full luxury wig e-commerce storefront at https://moluxury.vercel.app
-
-| Route | Status |
+| Route | Description |
 |---|---|
-| `/` | Homepage: hero, mood, new collection, signature, trending, experience, TikTok |
-| `/shop` | Full catalogue with filter + sort (31 products) |
-| `/shop/[slug]` | Product detail: gallery, length/density selector, add to cart, wishlist |
+| `/` | Homepage — hero, new collection, trending, experience, TikTok |
+| `/shop` | Product catalogue — filter + sort — reads from Supabase |
+| `/shop/[slug]` | Product detail — gallery, length/density selectors, add to cart |
 | `/services` | 6 in-studio services grid |
 | `/services/[slug]` | Service detail + booking panel |
 | `/about` | Brand story |
 | `/checkout` | 3-step: details → bank transfer → confirmed |
-| `/orders` | Public order lookup form |
-| `/orders/[ref]` | Public order status page with timeline |
+| `/orders` | Public order lookup |
+| `/orders/[ref]` | Order status page with timeline |
 
-**Working features:**
-- Cart (React state, in-memory — NOT persisted to localStorage yet)
+**The storefront reads products from Supabase, not `products.ts`.** This migration is complete.
+
+Working features on storefront:
+- Cart (in-memory, React state — NOT persisted to localStorage)
 - Wishlist (localStorage — persists across sessions)
-- Fixed bottom search pill (imports from products.ts — in sync)
-- Heart particle animation, GSAP animations, Web Audio sound effects
+- Fixed bottom search pill
+- GSAP animations, Web Audio sound effects, heart particle animation
 - Full SEO: sitemap, robots, OG tags, JSON-LD structured data
-- PWA manifest, favicon set
 
-### 1.2 — Admin Dashboard (built, deployed, NEEDS VERIFICATION)
+### 1.2 — Admin Dashboard (live, all routes working)
 
-Full CMS at https://moluxury.vercel.app/admin
+URL: https://moluxury.vercel.app/admin
 
-| Route | Purpose |
-|---|---|
-| `/admin/login` | Magic link auth (no password) |
-| `/admin/dashboard` | Stats: products, orders, bookings, pending. Recent lists |
-| `/admin/products` | Product grid with search/filter, add/edit/delete |
-| `/admin/products/new` | Create new product with image upload to Supabase Storage |
-| `/admin/products/[slug]/edit` | Edit product, drag-drop images, publish/draft |
-| `/admin/categories` | Add/edit/delete filter category tabs |
-| `/admin/orders` | Orders list with status filter + pagination |
-| `/admin/orders/[id]` | Order detail: status management, payment confirmation, notes |
-| `/admin/bookings` | Bookings list |
-| `/admin/bookings/[id]` | Booking detail + WhatsApp template |
-| `/admin/media` | Upload homepage + service images to Supabase Storage |
-| `/admin/settings` | Env var reference + quick links |
-
-**Auth:** Magic link only. Two authorised emails: `omosope43@gmail.com` and `obalanatosin16@gmail.com`.
-
-**Key mechanic:** When admin saves a product → calls `/api/revalidate` → Next.js ISR purges cache → live site updates within seconds. No redeployment needed.
-
-### 1.3 — Supabase Project (set up, NEEDS VERIFICATION)
-
-- **Project name:** moluxury  
-- **Project ID:** `aurirjornlsqepblndwa`  
-- **Project URL:** `https://aurirjornlsqepblndwa.supabase.co`  
-- **Region:** EU West (Ireland) — `eu-west-1`
-
-**Tables created:**
-- `categories` — filter tab management (9 seeded)
-- `products` — product catalogue (empty — needs seeding from products.ts OR via admin)
-- `orders` — order records (written by `/api/confirm-order`)
-- `bookings` — booking records (written by `/api/send-booking`)
-
-**Storage buckets created:**
-- `product-images` — public — for product photos uploaded via admin
-- `service-images` — public — for service page images
-- `homepage-assets` — public — for hero, mood section, experience section images
-- `payment-proofs` — private — for customer payment proof uploads
-
-**RLS policies:** Products and categories are publicly readable. Orders and bookings have no public access. All write operations require the service role key.
-
-**Auth configured:**
-- Site URL: `https://moluxury.vercel.app`
-- Redirect URLs: `https://moluxury.vercel.app/admin/auth/callback` and `http://localhost:3000/admin/auth/callback`
-- Admin users added: `omosope43@gmail.com` + `obalanatosin16@gmail.com`
-
----
-
-## 2. WHAT CLAUDE CLAIMED TO DO (verify before trusting)
-
-The following were completed in the browser automation session. Claude did these directly — verify them in Supabase dashboard before relying on them.
-
-| Action | Claimed | Should Verify |
+| Route | Purpose | Status |
 |---|---|---|
-| Supabase project created | ✅ | Check supabase.com dashboard |
-| SQL schema ran successfully | ✅ "Success. No rows returned" | Check Table Editor — all 4 tables should exist with correct columns |
-| All 4 storage buckets created | ✅ | Check Storage — product-images PUBLIC, service-images PUBLIC, homepage-assets PUBLIC, payment-proofs PRIVATE |
-| Auth site URL set to https://moluxury.vercel.app | ✅ | Check Auth → URL Configuration |
-| Both redirect URLs added | ✅ | Check Auth → URL Configuration — should see both prod + localhost URLs |
-| Both admin users added | ✅ (saw both in screenshot) | Check Auth → Users — should see both emails |
-| All 9 Vercel env vars set | ✅ | Run `vercel env ls` in ~/moluxury — should show 10 vars total |
-| Latest Vercel deployment: READY | ✅ dpl_67ujn5Z8MzGypQf1ZXUZYzWXVAyH | Visit https://moluxury.vercel.app/admin |
+| `/admin/login` | Magic link auth (no password) | ✅ |
+| `/admin/dashboard` | Stats overview + recent orders/bookings | ✅ |
+| `/admin/analytics` | Full analytics with SVG charts + date filters | ✅ |
+| `/admin/products` | Product grid — shows ALL including drafts | ✅ |
+| `/admin/products/new` | Create product, upload images via Cloudinary | ✅ |
+| `/admin/products/[slug]/edit` | Edit product — all fields including publish toggle | ✅ |
+| `/admin/categories` | Manage filter category tabs | ✅ |
+| `/admin/orders` | Orders list with search + status filter | ✅ |
+| `/admin/orders/[id]` | Order detail — status management, notes, WhatsApp | ✅ |
+| `/admin/bookings` | Bookings list | ✅ |
+| `/admin/bookings/[id]` | Booking detail + WhatsApp template | ✅ |
+| `/admin/media` | Upload homepage/service images | ✅ |
+| `/admin/settings` | Env var reference | ✅ |
+
+**Auth:** Magic link only. Authorised: `omosope43@gmail.com` + `obalanatosin16@gmail.com`.
+
+### 1.3 — Supabase (confirmed working)
+
+- **Project URL:** `https://aurirjornlsqepblndwa.supabase.co`
+- **Project ID:** `aurirjornlsqepblndwa`
+- **Region:** EU West (Ireland)
+
+**Tables (all confirmed with data):**
+- `products` — **31 products seeded** (30 from products.ts + 1 existing)
+- `categories` — 9 categories seeded
+- `orders` — receives new orders from checkout (2 real orders as of last session)
+- `bookings` — receives bookings from services pages (1 real booking as of last session)
+
+**Current product image format:**
+All 31 seeded products have images stored as local paths e.g. `/products/bodie-1.jpg`.
+These are served from the `/public/products/` folder in the Next.js repo.
+When admin uploads NEW images via the product editor, they go to Cloudinary and are stored as full `https://res.cloudinary.com/oluwatosin17/...` URLs.
+`getImageUrl()` handles both formats transparently.
+
+### 1.4 — All Service-Role API Routes (the architecture that makes everything work)
+
+Every admin operation goes through a Next.js API route using the service role key.
+Direct Supabase client calls from admin pages (anon key) were blocked by RLS — this was fixed.
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/admin/products` | GET | All products including drafts |
+| `/api/admin/product` | POST | Create product |
+| `/api/admin/product` | PUT | Update product |
+| `/api/admin/product` | DELETE | Delete product |
+| `/api/admin/orders` | GET | All orders |
+| `/api/admin/orders/[id]` | GET | Single order |
+| `/api/admin/orders/[id]` | PATCH | Update status/notes/tracking |
+| `/api/admin/bookings` | GET | All bookings |
+| `/api/admin/bookings/[id]` | GET | Single booking |
+| `/api/admin/bookings/[id]` | PATCH | Update status/notes |
+| `/api/admin/stats` | GET | Dashboard counts + recent lists |
+| `/api/admin/analytics` | GET | Full analytics with date range |
+| `/api/confirm-order` | POST | Customer checkout → writes order to DB |
+| `/api/send-booking` | POST | Service booking → writes booking to DB |
+| `/api/revalidate` | POST | Clears Next.js ISR cache after product save |
+
+### 1.5 — Cloudinary Image Upload Flow
+
+**This is how uploading a product image works:**
+
+```
+Admin opens /admin/products/new or /admin/products/[slug]/edit
+    ↓
+Clicks the upload area (ImageUploader component)
+    ↓
+Cloudinary Upload Widget opens in browser (no backend involved)
+    ↓
+Admin selects images from their device
+    ↓
+Images upload DIRECTLY from browser → Cloudinary servers
+    ↓
+Cloudinary returns full URL: https://res.cloudinary.com/oluwatosin17/image/upload/...
+    ↓
+URL is added to the images[] array in the product form state
+    ↓
+Admin clicks "Save & Publish"
+    ↓
+PUT /api/admin/product → Supabase products.images[] updated with Cloudinary URLs
+    ↓
+/api/revalidate called → Next.js ISR cache cleared
+    ↓
+Live storefront re-fetches product → shows Cloudinary image
+```
+
+**Cloudinary credentials:**
+- Cloud name: `oluwatosin17`
+- Upload preset: `moluxury-unsigned` (unsigned, folder: `moluxury`)
+- Widget loaded via Script tag in admin layout (beforeInteractive)
+
+**Image hosting status:**
+- **30 seeded products** → images stored as `/products/slug.jpg` (served from `/public/`)
+- **Any new product created via admin** → images go to Cloudinary, stored as full https:// URL
+- Both formats work on the storefront because `getImageUrl()` handles both
 
 ---
 
-## 3. WHAT MUST BE VERIFIED BEFORE CONTINUING
+## 2. KEY BUGS FIXED (understand these before touching related code)
 
-### 3.1 — CRITICAL: Service Role Key May Be Wrong
+### Bug 1 — RLS blocks anon key (the most pervasive bug)
+**Every** admin page was using `createClient()` (anon key). Supabase RLS silently returns empty results for anon requests on protected tables. Fixed by routing all admin reads/writes through `/api/admin/*` routes that use `createAdminSupabaseClient()` (service role key, bypasses RLS).
 
-The `SUPABASE_SERVICE_ROLE_KEY` was extracted from Supabase via browser JavaScript char codes. There is a known risk of a 1-character error in the extracted value. If this key is wrong:
-- The admin dashboard UI will still render (it uses the anon key for reads)
-- **But DB writes will fail silently** — orders won't save, bookings won't save, product edits won't persist
+**Rule:** Admin pages NEVER call Supabase directly. They call `/api/admin/*` routes.
 
-**How to verify and fix:**
-1. Go to: `https://supabase.com/dashboard/project/aurirjornlsqepblndwa/settings/api-keys/legacy`
-2. Click **Reveal** on the service_role key
-3. Copy the full key
-4. Run in terminal:
-```bash
-cd ~/moluxury
-vercel env rm SUPABASE_SERVICE_ROLE_KEY production --yes
-echo "PASTE_FULL_KEY_HERE" | vercel env add SUPABASE_SERVICE_ROLE_KEY production
-# Also update .env.local:
-# SUPABASE_SERVICE_ROLE_KEY=PASTE_FULL_KEY_HERE
-```
-5. Also update `src/lib/supabase/admin-client.ts` — no changes needed, it reads from env
-
-Then redeploy: `git commit --allow-empty -m "chore: fix service role key" && git push`
-
-### 3.2 — Admin Login Flow (must test end-to-end)
-1. Go to https://moluxury.vercel.app/admin
-2. Should redirect to `/admin/login`
-3. Enter `omosope43@gmail.com` — click "Send magic link"
-4. Check inbox — click the link
-5. Should redirect to `/admin/dashboard`
-
-If the magic link doesn't arrive: check Supabase Auth → Emails settings, ensure "Enable email confirmations" is off for OTP.
-
-### 3.3 — Products table is EMPTY
-
-The SQL schema seeded the `categories` table with 9 rows, but the `products` table has **zero rows**. The storefront still reads from `src/lib/products.ts` (the static file).
-
-**The storefront has NOT been migrated to Supabase yet.** See Section 5 for what remains.
-
-### 3.4 — `service-images` bucket PUBLIC status
-
-The `service-images` bucket may not have been set to public — the browser automation hit a snag during that step. Verify in Supabase Storage that it shows "PUBLIC" badge alongside `product-images` and `homepage-assets`.
-
----
-
-## 4. CURRENT FILE STRUCTURE (key files only)
-
-```
-~/moluxury/
-├── .env.local                          ← DO NOT COMMIT — has all secrets
-├── src/
-│   ├── middleware.ts                   ← Protects /admin/* routes (Edge runtime)
-│   ├── lib/
-│   │   ├── products.ts                 ← STILL THE STOREFRONT SOURCE OF TRUTH (31 products)
-│   │   │                                  (Supabase migration not yet done)
-│   │   ├── cart-context.tsx            ← In-memory cart (NOT persisted to localStorage)
-│   │   ├── wishlist-context.tsx        ← localStorage-persisted wishlist
-│   │   ├── sound.ts                    ← Web Audio API sound effects
-│   │   ├── gsap-utils.ts               ← GSAP animation presets
-│   │   └── supabase/
-│   │       ├── client.ts               ← Browser Supabase client (anon key)
-│   │       ├── server.ts               ← Server Supabase client (next/headers, cookie-based)
-│   │       ├── admin-client.ts         ← Service role client (NO next/headers — server-only)
-│   │       ├── storefront.ts           ← getAllProducts(), getProductBySlug(), getCategories()
-│   │       │                              (ready to use but storefront not migrated yet)
-│   │       ├── types.ts                ← DBProduct, Category, Order, Booking types
-│   │       ├── utils.ts                ← getImageUrl() — safe in client + server
-│   │       └── admin-config.ts         ← ADMIN_EMAILS list from env var
-│   ├── app/
-│   │   ├── admin/                      ← Full admin dashboard (all routes built)
-│   │   ├── orders/                     ← Public order tracking (/orders + /orders/[ref])
-│   │   ├── api/
-│   │   │   ├── confirm-order/          ← Sends customer email + writes to Supabase orders table
-│   │   │   ├── send-order/             ← Admin notification email
-│   │   │   ├── send-booking/           ← Admin booking notification + writes to Supabase bookings
-│   │   │   └── revalidate/             ← POST to purge ISR cache after admin saves
-│   │   └── [storefront pages...]
-│   └── components/
-│       ├── admin/                      ← sidebar, topbar, product-editor, image-uploader, etc.
-│       └── [storefront components...]
-```
-
----
-
-## 5. REMAINING WORK (prioritised)
-
-### Priority 1 — VERIFY (before any new feature work)
-1. **Fix service role key** (see Section 3.1)
-2. **Test admin login** end-to-end (see Section 3.2)
-3. **Confirm Supabase tables exist** — visit Table Editor in Supabase dashboard
-4. **Confirm `service-images` is public** — Storage → check for PUBLIC badge
-
-### Priority 2 — Seed existing 31 products into Supabase DB
-
-**Status:** The `products` table exists but is EMPTY. The admin dashboard shows no products. The storefront still reads from `products.ts`. These are the same 31 products — they just need to be copied into the database.
-
-**How to do it (two options):**
-
-**Option A — SQL (fastest):** Run the seed SQL in Supabase SQL Editor. The full INSERT statement is in `MOLUXURY_ADMIN_SPEC.md` Section 5.5. It covers all 30 products. The 31st product (`morayo`) is missing from that spec — add it manually:
-```sql
-INSERT INTO products (slug, name, price_naira, category_slugs, available_lengths, available_densities, texture, display_order)
-VALUES ('morayo', 'Honey Straight Gloss 24"', 295000, '["silky-straight","new-in"]',
-  '["18\"","20\"","22\"","24\"","26\"","28\""]', '["150%","180%","200%","250%"]', 'Silky Straight', 31);
-```
-After running, the `images` column will be empty arrays — product images still served from `/public/products/` via `products.ts` until storefront migration.
-
-**Option B — Admin UI:** After login works, use `/admin/products/new` to recreate products one by one with images. Slower but lets you upload proper Cloudinary images at the same time (see Priority 3 below).
-
-### Priority 3 — Switch image hosting from Supabase Storage → Cloudinary
-
-**Decision made:** Use Cloudinary for all image hosting instead of Supabase Storage.
-
-**Why:**
-- Supabase free tier: 1GB storage total — not enough for 109+ product images at full quality
-- Cloudinary free tier: 25GB storage + 25GB bandwidth/month + automatic WebP/resize/CDN
-- Cloudinary handles image optimisation automatically (serves WebP to modern browsers)
-- No backend code needed — Cloudinary's Upload Widget runs entirely in the browser
-
-**Architecture (exactly as the owner proposed):**
-```
-Admin Panel
-    ↓
-Upload image via Cloudinary Widget (browser-only, no backend)
-    ↓
-Cloudinary stores image + returns URL (e.g. https://res.cloudinary.com/your-cloud/image/upload/...)
-    ↓
-Claude stores that URL in Supabase products.images[] column
-    ↓
-Website displays image — getImageUrl() passes https:// URLs straight through (no changes needed)
-```
-
-**What needs to be built:**
-1. Create free Cloudinary account at cloudinary.com → get `cloud_name`, `upload_preset` (unsigned)
-2. Add env vars: `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...`
-3. Replace `src/components/admin/image-uploader.tsx` — swap Supabase Storage upload for Cloudinary Widget
-4. The `getImageUrl()` utility already handles `https://` URLs — NO storefront changes needed
-5. The existing Supabase Storage buckets (`product-images`, `service-images`, `homepage-assets`) can be deleted or left empty — they won't be used
-
-**Cloudinary upload widget implementation (for Claude):**
+### Bug 2 — Next.js fetch cache (caused stale/empty data)
+Next.js 14 patches the global `fetch` function and caches all GET requests by default. The Supabase JS client uses `fetch` internally, so cached responses returned stale data. Fixed by adding `cache: 'no-store'` to every fetch call in `admin-client.ts`:
 ```typescript
-// Load Cloudinary widget script in admin layout or image-uploader component
-// Use window.cloudinary.createUploadWidget({ cloud_name, upload_preset, sources: ['local'] })
-// On success callback: receive result.info.secure_url → add to images array
-// Store the full https://res.cloudinary.com/... URL directly in Supabase
+global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) }
 ```
 
-**Note:** Do NOT store Cloudinary paths like in the current Supabase Storage approach. Store the FULL URL. The `getImageUrl()` function will return it unchanged.
+### Bug 3 — Orders never reached Supabase
+`confirm-order` API tried to send customer email first. Resend sandbox blocked emails to non-verified addresses, returned 503, route crashed, Supabase write never ran. Fixed: DB write happens FIRST, emails are non-fatal.
 
-### Priority 4 — Fix admin ↔ booking/order communication (currently broken)
+### Bug 4 — Publish toggle was cosmetic
+Product editor's `save()` function took a hardcoded `publish: boolean` parameter from the button clicked — the toggle's state was ignored. Fixed: `save()` now reads the `published` state. Toggle is the single source of truth. Buttons stay in sync with toggle.
 
-**Status:** When a customer makes a booking or places an order, nothing appears in the admin dashboard. The admin is receiving no notification.
+### Bug 5 — use(params) crash on detail pages (Next.js version mismatch)
+Order/booking detail pages used `use(params)` — the Next.js 15 async params API. This app is Next.js 14 / React 18 where `params` is a plain object. Calling `use()` on a plain object throws. Fixed: `const { id } = params` directly.
 
-**Root cause (two separate issues):**
+### Bug 6 — head:true count parsing
+`supabase.from("table").select("*", { count: "exact", head: true })` doesn't reliably return `.count` in Next.js server context. Fixed: use `select("id", { count: "exact" })` (no head:true).
 
-**Issue A — Supabase writes are silently failing:**
-All DB writes in `/api/confirm-order` and `/api/send-booking` are wrapped in `try/catch` and marked "non-fatal". They fail because the service role key is wrong (Priority 1). Fix the key → writes start working → orders and bookings appear in admin dashboard automatically.
-
-**Issue B — Admin email notifications are not delivering:**
-`RESEND_FROM_EMAIL=onboarding@resend.dev` is Resend's sandbox address. Sandbox can only deliver to the Resend account owner's email (`obalanatosin17@gmail.com`). Emails to `omosope43@gmail.com` are silently dropped.
-
-**To fix email notifications:** Verify a domain in Resend dashboard:
-1. Go to resend.com → Domains → Add Domain (e.g. `mail.moluxury.com` or any domain you own)
-2. Add the DNS TXT record Resend gives you to your domain registrar
-3. Wait for verification (5-30 min)
-4. Update in Vercel: `RESEND_FROM_EMAIL=orders@yourdomain.com`
-5. Redeploy
-
-**If you don't have a domain yet:** As a temporary workaround, go to Resend dashboard → Contacts → add `omosope43@gmail.com` as a verified contact. This allows sandbox to deliver to that address.
-
-### Priority 5 — Migrate storefront to Supabase (the "golden rule")
-Only do this AFTER Priority 2 (products seeded) is complete and verified.
-
-Update storefront pages to read from DB instead of `products.ts`:
-
-**Files to update:**
-- `src/app/shop/page.tsx` + `client.tsx` — replace `import { products }` with `getAllProducts()`
-- `src/app/shop/[slug]/page.tsx` + `client.tsx` — replace lookup with `getProductBySlug(slug)`
-- `src/app/sitemap.ts` — replace products import with `getAllProducts()`
-- `src/components/fixed-search.tsx` — update to fetch from Supabase at page load
-
-**Helper already written:** `src/lib/supabase/storefront.ts` has `getAllProducts()`, `getProductBySlug()`, `getCategories()` — ready to use.
-
-After migration: add `// DEPRECATED — product data now lives in Supabase. Kept for reference only.` to top of `products.ts`. Do NOT delete it.
-
-### Priority 6 — Cart localStorage persistence
-The cart is lost on page refresh. Wishlist already persists. Add localStorage to `src/lib/cart-context.tsx` following the exact same pattern as `src/lib/wishlist-context.tsx` (hydration guard, `useEffect` load on mount, save on every change).
-
-### Priority 7 — Custom 404 page
-No `app/not-found.tsx` exists. `notFound()` is called for invalid slugs but falls back to a generic Next.js page. Create a branded page matching the MoLuxury aesthetic.
-
-### Priority 8 — Upload UI section images (fix expiring Figma URLs)
-Current homepage/service images use expiring Figma URLs (`src/lib/assets.ts`). These break after ~7 days.
-Use `/admin/media` to upload replacements to Cloudinary OR Supabase `homepage-assets/`, then update `src/lib/assets.ts` with the permanent URLs and remove `www.figma.com` from `next.config.mjs` allowed image domains.
+### Bug 7 — Draft products invisible in admin
+`/admin/products` was using anon client. RLS only exposes `is_published=true` to anon. Drafts returned empty. Fixed: page fetches from `/api/admin/products` (service role).
 
 ---
 
-## 6. ENVIRONMENT VARIABLES
+## 3. ARCHITECTURE RULES — NEVER VIOLATE THESE
 
-### `.env.local` (local only, never committed)
+1. **Admin pages never call Supabase directly.** All data comes from `/api/admin/*` routes.
+2. **`createAdminSupabaseClient()`** is the only client used in API routes. It uses the service role key and has `cache: 'no-store'` on all fetches.
+3. **`createClient()`** (anon key) is used ONLY for: auth (sign in/out) and the slug uniqueness check in the product editor. Nothing else.
+4. **`createServerSupabaseClient()`** is used ONLY in middleware for session verification.
+5. **`getAllProducts()` and `getProductBySlug()`** are for storefront server components only — they use service role but are read-only.
+6. **All API routes have `export const dynamic = "force-dynamic"`** to prevent Next.js from caching responses.
+7. **Product images from admin go to Cloudinary.** Do NOT introduce Supabase Storage for new uploads.
+8. **`SUPABASE_SERVICE_ROLE_KEY` is server-only.** It must never appear in `NEXT_PUBLIC_*` variables or client-side code.
+9. **Do NOT delete `products.ts`.** It is deprecated but kept for reference. The storefront no longer reads from it.
+10. **Never use `git push --force`.** All commits are clean.
+
+---
+
+## 4. ENVIRONMENT VARIABLES
+
+### `.env.local` (local only — never committed)
 ```
 RESEND_API_KEY=re_G26NNtrk_CVFxowqpiHMgZ735pqpQKjDp
 RESEND_FROM_EMAIL=onboarding@resend.dev
@@ -325,103 +207,222 @@ NEXT_PUBLIC_SITE_URL=https://moluxury.vercel.app
 
 NEXT_PUBLIC_SUPABASE_URL=https://aurirjornlsqepblndwa.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmlyam9ybmxzcWVwYmxuZHdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MjE3MjEsImV4cCI6MjA5NjE5NzcyMX0.SzTGUa_Ne8PoLxsk8OnpfckO18ktkTjXzB_7y5L9y1c
-SUPABASE_SERVICE_ROLE_KEY=[VERIFY THIS — may have 1-char extraction error, see Section 3.1]
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmlyam9ybmxzcWVwYmxuZHdhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDYyMTcyMSwiZXhwIjoyMDk2MTk3NzIxfQ.4OiRQlEa0dAMAjLKNAujNs1v76cl3S7WjwaHwkE6tts
 
 ADMIN_EMAILS=omosope43@gmail.com,obalanatosin16@gmail.com
 REVALIDATE_SECRET=moluxury-revalidate-2026
 NEXT_PUBLIC_REVALIDATE_SECRET=moluxury-revalidate-2026
+
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=oluwatosin17
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=moluxury-unsigned
 ```
+
+All 12 variables are also set in Vercel production.
 
 ### Supabase credentials
 - Dashboard: https://supabase.com/dashboard/project/aurirjornlsqepblndwa
-- Project ref: `aurirjornlsqepblndwa`
-- DB password (saved by Claude during setup): `m7F3u2EttmDwomJs`
-
-### Admin users
-- `omosope43@gmail.com` — password set to `MoLuxury2026!` (not used — magic link only)
-- `obalanatosin16@gmail.com` — same placeholder password
+- DB password: `m7F3u2EttmDwomJs`
 
 ---
 
-## 7. WHAT NOT TO ASSUME
+## 5. FILE STRUCTURE (key files only)
 
-1. **Do NOT assume the Supabase service role key is correct.** Verify it (Section 3.1) before writing any code that depends on DB writes.
-
-2. **Do NOT assume products are in the Supabase DB.** The `products` table was created but NOT seeded. `products.ts` is still the storefront data source.
-
-3. **Do NOT assume the storefront reads from Supabase.** It still reads from `src/lib/products.ts`. The admin product editor saves to Supabase, but the storefront ignores it until migration is done (Priority 3).
-
-4. **Do NOT assume emails deliver to `omosope43@gmail.com`.** Resend sandbox only delivers to the Resend account owner email. Emails to admin + customers may silently fail.
-
-5. **Do NOT assume the admin login works without testing it.** The middleware, magic link, and auth callback were all written but never tested end-to-end.
-
-6. **Do NOT delete `products.ts`.** It is still the active data source for the storefront. Mark it deprecated only after storefront migration is complete and verified.
-
-7. **Do NOT run `git push --force`.** All commits are clean. Never amend pushed commits.
-
-8. **Do NOT assume `service-images` bucket is public.** The browser automation step was interrupted. Verify manually.
+```
+~/moluxury/
+├── .env.local                              ← DO NOT COMMIT
+├── MASTER.md                               ← This file
+├── scripts/
+│   └── seed-products.mjs                  ← One-time seed script (already run)
+├── src/
+│   ├── middleware.ts                       ← Protects /admin/* (Edge runtime)
+│   ├── lib/
+│   │   ├── products.ts                     ← DEPRECATED. Storefront no longer reads this.
+│   │   │                                      Keep for reference. Do not delete.
+│   │   ├── cart-context.tsx                ← In-memory cart (not localStorage)
+│   │   ├── wishlist-context.tsx            ← localStorage wishlist
+│   │   └── supabase/
+│   │       ├── client.ts                   ← Browser client (anon key) — admin auth only
+│   │       ├── server.ts                   ← Server client + re-exports admin client
+│   │       ├── admin-client.ts             ← Service role client + cache:no-store fix
+│   │       ├── storefront.ts               ← getAllProducts(), getProductBySlug()
+│   │       ├── types.ts                    ← DBProduct, Order, Booking, Category types
+│   │       └── utils.ts                    ← getImageUrl() — handles /path and https://
+│   ├── app/
+│   │   ├── shop/
+│   │   │   ├── page.tsx                    ← async server component, fetches from Supabase
+│   │   │   ├── client.tsx                  ← accepts DBProduct[] prop
+│   │   │   └── [slug]/
+│   │   │       ├── page.tsx                ← async, fetches product + related from Supabase
+│   │   │       └── client.tsx              ← accepts DBProduct + relatedProducts props
+│   │   ├── admin/
+│   │   │   ├── analytics/page.tsx          ← SVG charts, date filters, multi-series
+│   │   │   ├── dashboard/page.tsx          ← fetches from /api/admin/stats
+│   │   │   ├── orders/
+│   │   │   │   ├── page.tsx               ← fetches from /api/admin/orders
+│   │   │   │   └── [id]/page.tsx          ← fetches from /api/admin/orders/[id]
+│   │   │   ├── bookings/
+│   │   │   │   ├── page.tsx               ← fetches from /api/admin/bookings
+│   │   │   │   └── [id]/page.tsx          ← fetches from /api/admin/bookings/[id]
+│   │   │   └── products/
+│   │   │       ├── page.tsx               ← fetches from /api/admin/products (ALL incl. drafts)
+│   │   │       ├── new/page.tsx
+│   │   │       └── [slug]/edit/page.tsx
+│   │   └── api/
+│   │       ├── admin/
+│   │       │   ├── stats/route.ts
+│   │       │   ├── analytics/route.ts      ← accepts ?from=&to= date params
+│   │       │   ├── products/route.ts       ← GET all (service role)
+│   │       │   ├── product/route.ts        ← POST/PUT/DELETE (service role)
+│   │       │   ├── orders/route.ts + [id]/route.ts
+│   │       │   └── bookings/route.ts + [id]/route.ts
+│   │       ├── confirm-order/route.ts      ← Writes order to Supabase FIRST, then emails
+│   │       ├── send-booking/route.ts       ← Writes booking to Supabase, then email
+│   │       └── revalidate/route.ts         ← Clears ISR cache for /shop, /shop/[slug], /
+│   └── components/
+│       ├── admin/
+│       │   ├── image-uploader.tsx          ← Cloudinary widget (no Supabase Storage)
+│       │   ├── product-editor.tsx          ← Calls /api/admin/product (NOT Supabase direct)
+│       │   ├── sidebar.tsx                 ← Nav with Analytics link
+│       │   └── status-badge.tsx
+│       └── [storefront components...]
+```
 
 ---
 
-## 8. WHAT SUCCESS LOOKS LIKE (final goal)
+## 6. KNOWN ISSUES / REMAINING WORK
 
-**The golden rule (from MOLUXURY_ADMIN_SPEC.md):**
-> Every change an admin makes in the dashboard reflects on the live website immediately. No code. No redeployments. No touching `products.ts`.
+### Priority 1 — Email delivery (partly broken)
+**Status:** `RESEND_FROM_EMAIL=onboarding@resend.dev` is Resend's sandbox address.
+- Emails to `omosope43@gmail.com` (the Resend account owner) → work
+- Emails to customers with arbitrary addresses → **silently blocked by Resend sandbox**
+- Orders still save to Supabase (DB write is first, email is non-fatal)
+- Admin sees the order in dashboard but customer gets no confirmation email
+
+**To fix:** Verify a domain in Resend dashboard (resend.com/domains). Then:
+```bash
+# Update in Vercel:
+RESEND_FROM_EMAIL=orders@yourdomain.com
+# Then redeploy
+```
+
+### Priority 2 — Cart not persisted to localStorage
+Cart is lost on page refresh. Wishlist persists fine. Add localStorage to `src/lib/cart-context.tsx` following the same pattern as `src/lib/wishlist-context.tsx` (hydration guard, useEffect load on mount, save on every change).
+
+### Priority 3 — Expiring homepage/service images
+Some images on the homepage and services pages may still use Figma URLs (in `src/lib/assets.ts`). These expire after ~7 days. Use `/admin/media` to upload replacements to Cloudinary, update `src/lib/assets.ts` with permanent URLs, and remove `www.figma.com` from `next.config.mjs` image domains.
+
+### Priority 4 — Storefront product images (low priority)
+All 30 seeded products have images as `/products/slug.jpg` paths (from the repo's `/public/` folder). These work fine. If you want admin-managed images for existing products, go to `/admin/products/[slug]/edit`, upload images via Cloudinary, and save. The new Cloudinary URL replaces the path.
+
+### Priority 5 — Custom 404 page
+No `app/not-found.tsx` exists. `notFound()` falls back to Next.js generic page. Create a branded page matching MoLuxury aesthetic.
+
+### Priority 6 — Product views tracking
+Analytics shows "no data" for product views because there's no tracking infrastructure. To add: create a `product_views` table in Supabase (product_slug, viewed_at), call an API route from the product detail page on load, query in analytics. Not implemented yet.
+
+---
+
+## 7. HOW THE ADMIN SAVE FLOW WORKS (read before touching product editor)
+
+```
+Admin fills in form (name, price, description, images, categories, etc.)
+    ↓
+Toggle switch = the ONLY publish control
+  "Save & Publish" button → calls save() using toggle state (if ON → published)
+  "Save as Draft" button  → calls save(false) → forces draft regardless of toggle
+    ↓
+save() function calls:
+  PUT /api/admin/product  { id, ...allFields, is_published: publishValue }
+    ↓
+/api/admin/product (PUT handler):
+  createAdminSupabaseClient() → service role → bypasses RLS
+  supabase.from("products").update(payload).eq("id", id)
+  Returns { product: updatedRow }
+    ↓
+On success:
+  POST /api/revalidate?secret=...&slug=...
+  Clears Next.js ISR cache for /shop/[slug], /shop, /
+    ↓
+Toast shown. Live site updates within 60 seconds.
+```
+
+**If you see saves not working:** Check the browser network tab for `/api/admin/product` — if it returns 4xx, the payload is likely missing a required field or the service role key expired.
+
+---
+
+## 8. HOW ORDERS FLOW FROM CUSTOMER TO ADMIN
+
+```
+Customer completes checkout → clicks "Confirm Order"
+    ↓
+POST /api/confirm-order {
+  orderId, customerName, customerEmail, items, total, ...
+}
+    ↓
+STEP 1 (always runs): Write to Supabase orders table via service role
+  supabase.from("orders").upsert({ order_ref: orderId, ... })
+    ↓
+STEP 2 (non-fatal): Send customer confirmation email via Resend
+  May fail if customer email is not verified in sandbox — DB record still saved
+    ↓
+STEP 3 (non-fatal): Send admin notification email
+    ↓
+Return { success: true } to customer
+    ↓
+Admin dashboard (/admin/orders) fetches GET /api/admin/orders → sees the order
+```
+
+**Bookings follow the same pattern** via `POST /api/send-booking`.
+
+---
+
+## 9. WHAT MUST NOT BE ASSUMED
+
+1. **Do NOT assume admin pages call Supabase directly.** They don't — they call `/api/admin/*`. If you add a new admin feature and query Supabase directly from a client component, drafts will be invisible, counts will be wrong, and writes will fail.
+
+2. **Do NOT assume `head: true` works for counts in Next.js.** Use `select("id", { count: "exact" })` instead.
+
+3. **Do NOT assume emails reach customers.** Resend sandbox restriction. The DB record is written regardless.
+
+4. **Do NOT assume `products.ts` is the data source.** The storefront reads from Supabase. `products.ts` is deprecated.
+
+5. **Do NOT assume all product images are on Cloudinary.** Seeded products use `/products/slug.jpg` (local). Only new admin uploads go to Cloudinary. Both work.
+
+6. **Do NOT use `use(params)` in Next.js 14.** It's a Next.js 15 API. Use `params.id` directly.
+
+7. **Do NOT add `head: true` to count queries.** It doesn't work reliably with the cache: no-store setup.
+
+8. **Do NOT delete `src/lib/products.ts`.** Marked deprecated — keep for reference.
+
+9. **Do NOT push `--force` to git.**
+
+10. **Do NOT expose `SUPABASE_SERVICE_ROLE_KEY` to client-side code.**
+
+---
+
+## 10. WHAT SUCCESS LOOKS LIKE (the golden rule)
+
+> Every change an admin makes reflects on the live website within 60 seconds. No code. No redeployment.
 
 **You're done when:**
-- [ ] Admin can log in at `/admin` with magic link
-- [ ] Admin can add a new product from `/admin/products/new`, upload images, set price and categories, click "Save & Publish" — and it appears on the live shop within 60 seconds
-- [ ] Admin can edit a product name/price and see it update on the live site
-- [ ] Admin can upload a new hero image via `/admin/media` and see it on the homepage
-- [ ] When a customer places an order, it appears in `/admin/orders`
-- [ ] When a customer makes a service booking, it appears in `/admin/bookings`
-- [ ] The storefront `/shop` page reads products from Supabase DB (not `products.ts`)
-- [ ] `products.ts` is marked `// DEPRECATED` at the top
+- [x] Admin logs in at `/admin` with magic link
+- [x] Admin creates a product via `/admin/products/new`, uploads images via Cloudinary, saves → appears on storefront
+- [x] Admin edits product name/price/publish toggle → reflects on live site
+- [x] Admin can see and manage orders at `/admin/orders`
+- [x] Admin can see and manage bookings at `/admin/bookings`
+- [x] Draft products are visible in admin but hidden from storefront
+- [x] Analytics page shows charts with date range filter
+- [x] Orders placed on storefront appear in admin dashboard
+- [x] Bookings made on services pages appear in admin dashboard
+- [ ] Customer receives email confirmation after order ← blocked by Resend sandbox
+- [ ] Cart persists on page refresh ← not yet implemented
+- [ ] Homepage/service images are permanent URLs (not expiring Figma) ← in progress
 
 ---
 
-## 9. TECHNICAL NOTES FOR CLAUDE
+## 11. BRAND REFERENCE
 
-### The `next/headers` split
-`server.ts` uses `next/headers` → cannot be imported by client components.
-`admin-client.ts` uses only `@supabase/supabase-js` → safe to import from anywhere server-side.
-`utils.ts` has `getImageUrl()` → pure function, safe everywhere.
-
-Client components import: `getImageUrl` from `@/lib/supabase/utils`
-Server components/API routes import: `createAdminSupabaseClient` from `@/lib/supabase/admin-client` (or via `server.ts` re-export)
-Middleware imports: `createServerClient` from `@supabase/ssr` directly (not via our files)
-
-### Revalidation pattern
-After every admin save:
-```typescript
-await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}&slug=${slug}`, { method: 'POST' })
-```
-This triggers Next.js ISR to regenerate `/shop/[slug]`, `/shop`, and `/`. The live site updates within 60 seconds.
-
-### Image storage — decided: Cloudinary
-Store FULL `https://res.cloudinary.com/...` URLs directly in Supabase `products.images[]`.
-Do NOT store paths. The `getImageUrl()` function returns `https://` URLs unchanged.
-
-Legacy images still in `/public/products/` are served fine — `getImageUrl('/products/slug-1.jpg')` returns `/products/slug-1.jpg` unchanged. No migration of existing images is required until you want admin-managed images.
-
-### `getImageUrl()` rules
-```
-https://... URL  →  returned as-is          (Cloudinary, Figma, any CDN)
-/public/ path    →  returned as-is          (local Next.js public folder)
-supabase path    →  built into full URL     (legacy, avoid for new images)
-```
-
-### ESLint is strict on Vercel
-Any `no-unused-vars` violation causes a build failure. Run `npx tsc --noEmit` locally before pushing.
-
-### Supabase service key is server-only
-`SUPABASE_SERVICE_ROLE_KEY` must NEVER appear in client-side code or `NEXT_PUBLIC_` prefixed vars. It bypasses all RLS policies. Only use it in API routes and server components via `createAdminSupabaseClient()`.
-
----
-
-## 10. BRAND REFERENCE
-
-**Voice:** Quiet, editorial, intentional. Never explains itself. Never apologises.
+**Voice:** Quiet, editorial, intentional. Never explains itself.
 - Sample: *"Wear luxury like it was made for you."* | *"Luxury isn't rushed."*
 
 **Typography:** Cormorant Garamond (headings, italic) + Inter Tight (body)
@@ -429,68 +430,43 @@ Any `no-unused-vars` violation causes a build failure. Run `npx tsc --noEmit` lo
 **Colours:**
 - `primary` = `#181b25` (near-black)
 - `secondary` = `#666052` (warm gray)
-- `surface` = `#f1ede7` (warm off-white — page background)
-- `surface-inverse` = `#0e121b` (dark buttons)
+- `surface` = `#f1ede7` (warm off-white)
 - Admin accent: `#c9a96e` (gold)
-
-**Admin design system:** Dark theme — `bg-[#0e0f11]`, surfaces `#16181d`, borders `rgba(255,255,255,0.07)`, accent gold `#c9a96e`. Desktop-only. No responsive needed for admin.
+- Admin background: `#0e0f11`, surfaces `#16181d`, borders `rgba(255,255,255,0.07)`
 
 **Contact:**
 - WhatsApp/Phone: `+2348144730948`
 - Admin email: `omosope43@gmail.com`
+- Resend account owner: `obalanatosin17@gmail.com`
 - Payment: Opay | Account: `8144730948` | Name: MoLuxury
 
 ---
 
----
+## 12. QUICK DIAGNOSTIC COMMANDS
 
-## 11. CLOUDINARY SETUP (for next session)
+Run these if something seems broken:
 
-When implementing Cloudinary:
+```bash
+# Check all tables have data
+SERVICE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmlyam9ybmxzcWVwYmxuZHdhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDYyMTcyMSwiZXhwIjoyMDk2MTk3NzIxfQ.4OiRQlEa0dAMAjLKNAujNs1v76cl3S7WjwaHwkE6tts"
 
-**Step 1 — Create account + get credentials**
-1. Go to cloudinary.com → free account
-2. Dashboard → Settings → Upload → Add upload preset → set to "Unsigned"
-3. Note your `Cloud Name` and the unsigned `Upload Preset` name
+curl -s "https://aurirjornlsqepblndwa.supabase.co/rest/v1/products?select=count" \
+  -H "Prefer: count=exact" -H "apikey:$SERVICE_KEY" -H "Authorization:Bearer $SERVICE_KEY" \
+  -I | grep content-range
+# Should show: 0-0/31
 
-**Step 2 — Add env vars to `.env.local` AND Vercel**
+# Test product update API locally
+curl -s -X PUT "http://localhost:3000/api/admin/product" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"PRODUCT_UUID","slug":"test","name":"Test","price_naira":100000,"is_published":true,"images":[],"category_slugs":[],"available_lengths":[],"available_densities":[],"texture":"","cap_type":"HD Transparent Lace","origin":"100% Virgin Human Hair"}' \
+  | python3 -m json.tool
+
+# Test analytics API
+curl -s "http://localhost:3000/api/admin/analytics?from=2026-01-01&to=2026-12-31" \
+  | python3 -m json.tool
 ```
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
-NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your-unsigned-preset
-```
-
-**Step 3 — Install the widget**
-No npm package needed. Add this script to `src/app/admin/layout.tsx`:
-```tsx
-<Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="beforeInteractive" />
-```
-
-**Step 4 — Rewrite `src/components/admin/image-uploader.tsx`**
-Replace the Supabase Storage upload logic with:
-```typescript
-function openCloudinaryWidget(onSuccess: (url: string) => void) {
-  const widget = (window as any).cloudinary.createUploadWidget({
-    cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-    sources: ['local', 'url'],
-    multiple: true,
-    maxFiles: 10,
-    clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
-    maxFileSize: 10000000,
-  }, (error: unknown, result: { event: string; info: { secure_url: string } }) => {
-    if (!error && result.event === 'success') {
-      onSuccess(result.info.secure_url) // full https://res.cloudinary.com/... URL
-    }
-  })
-  widget.open()
-}
-```
-
-**Step 5 — Confirm storefront works**
-No storefront changes needed. `getImageUrl('https://res.cloudinary.com/...')` returns the URL unchanged.
 
 ---
 
-*Generated at end of session — June 2026. Covers work done across 2 Claude sessions.*
-*Updated with: Cloudinary image hosting decision, product seeding gap, admin/booking communication root cause.*
-*Next session start checklist: (1) fix service role key, (2) test admin login, (3) seed products SQL, (4) implement Cloudinary uploader.*
+*Generated June 2026. Covers all development sessions.*
+*Next session should start by reading this file and then asking: "What specifically do you want to work on today?"*
