@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import AdminTopbar from "@/components/admin/topbar";
 import type { Category } from "@/lib/supabase/types";
 
@@ -9,81 +8,98 @@ function slugify(s: string) {
 }
 
 export default function AdminCategories() {
-  const [cats, setCats]       = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newLabel, setNewLabel]   = useState("");
-  const [newSlug, setNewSlug]     = useState("");
+  const [cats, setCats]         = useState<Category[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [newLabel, setNewLabel] = useState("");
+  const [newSlug, setNewSlug]   = useState("");
   const [newFilter, setNewFilter] = useState(true);
-  const [adding, setAdding]   = useState(false);
-  const [editId, setEditId]   = useState<string | null>(null);
-  const [editLabel, setEditLabel]   = useState("");
-  const [editOrder, setEditOrder]   = useState(0);
-  const [toast, setToast]     = useState("");
+  const [adding, setAdding]     = useState(false);
+  const [editId, setEditId]     = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editOrder, setEditOrder] = useState(0);
+  const [toast, setToast]       = useState<{ msg: string; ok: boolean } | null>(null);
 
-  const supabase = createClient();
+  function showToast(msg: string, ok = true) {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3000);
+  }
 
+  // Load all categories via service-role API
   useEffect(() => {
-    supabase.from("categories").select("*").order("display_order").then(({ data }) => {
-      setCats(data ?? []);
-      setLoading(false);
-    });
-  }, []); // eslint-disable-line
-
-  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
+    fetch("/api/admin/categories")
+      .then(r => r.json())
+      .then(data => { setCats(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
   async function addCategory() {
     if (!newLabel || !newSlug) return;
     setAdding(true);
-    const { data, error } = await supabase.from("categories").insert({
-      slug: newSlug,
-      label: newLabel,
-      is_filter: newFilter,
-      display_order: cats.length,
-    }).select().single();
-    if (!error && data) {
+    const res = await fetch("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug: newSlug,
+        label: newLabel,
+        is_filter: newFilter,
+        display_order: cats.length,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
       setCats(prev => [...prev, data]);
       setNewLabel(""); setNewSlug(""); setNewFilter(true);
       showToast("Category added");
+      // Revalidate storefront
+      await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}`, { method: "POST" });
+    } else {
+      showToast(data.error ?? "Failed to add category", false);
     }
     setAdding(false);
   }
 
   async function saveEdit(id: string) {
-    const { error } = await supabase.from("categories")
-      .update({ label: editLabel, display_order: editOrder })
-      .eq("id", id);
-    if (!error) {
-      setCats(prev => prev.map(c => c.id === id ? { ...c, label: editLabel, display_order: editOrder } : c));
+    const res = await fetch(`/api/admin/categories/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: editLabel, display_order: editOrder }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setCats(prev => prev.map(c => c.id === id ? data : c));
       setEditId(null);
       showToast("Saved");
-      // Revalidate shop page
       await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}`, { method: "POST" });
+    } else {
+      showToast(data.error ?? "Save failed", false);
     }
   }
 
   async function deleteCategory(cat: Category) {
-    // Check if any products use this category
-    const { count } = await supabase.from("products")
-      .select("*", { count: "exact", head: true })
-      .contains("category_slugs", [cat.slug]);
-    if ((count ?? 0) > 0) {
-      alert(`Cannot delete: ${count} product${count === 1 ? "" : "s"} use this category. Reassign them first.`);
-      return;
-    }
+    if (cat.slug === "all-pieces") return;
     if (!confirm(`Delete "${cat.label}"?`)) return;
-    await supabase.from("categories").delete().eq("id", cat.id);
-    setCats(prev => prev.filter(c => c.id !== cat.id));
-    showToast("Deleted");
+    const res = await fetch(`/api/admin/categories/${cat.id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (res.ok) {
+      setCats(prev => prev.filter(c => c.id !== cat.id));
+      showToast("Deleted");
+    } else {
+      showToast(data.error ?? "Delete failed", false);
+    }
   }
 
   return (
     <div className="flex flex-col flex-1">
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white font-inter-tight text-[13px] px-5 py-3 rounded-[10px]">
-          {toast}
+        <div className={`fixed top-4 right-4 z-50 font-inter-tight text-[13px] px-5 py-3 rounded-[10px] shadow-xl transition-all ${
+          toast.ok ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+        }`}>
+          {toast.msg}
         </div>
       )}
+
       <AdminTopbar title="Categories" subtitle="Manage shop filter tabs" />
+
       <div className="flex-1 px-8 py-6 space-y-8 overflow-y-auto">
 
         {/* Table */}
@@ -98,13 +114,17 @@ export default function AdminCategories() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="py-12 text-center"><div className="w-5 h-5 border-2 border-[#c9a96e] border-t-transparent rounded-full animate-spin mx-auto" /></td></tr>
+                <tr>
+                  <td colSpan={5} className="py-12 text-center">
+                    <div className="w-5 h-5 border-2 border-[#c9a96e] border-t-transparent rounded-full animate-spin mx-auto" />
+                  </td>
+                </tr>
               ) : cats.map(c => (
                 <tr key={c.id} className="border-b border-[rgba(255,255,255,0.04)] last:border-0">
                   <td className="px-4 py-3">
                     {editId === c.id ? (
                       <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
-                        className="bg-[#1e2028] border border-[rgba(255,255,255,0.1)] rounded-[6px] px-2 py-1 font-inter-tight text-[13px] text-[#e8e4df] outline-none w-40"
+                        className="bg-[#1e2028] border border-[rgba(255,255,255,0.1)] rounded-[6px] px-2 py-1 font-inter-tight text-[13px] text-[#e8e4df] outline-none w-40 focus:border-[#c9a96e]/40"
                       />
                     ) : (
                       <span className="font-inter-tight text-[13px] text-[#e8e4df]">{c.label}</span>
@@ -135,10 +155,14 @@ export default function AdminCategories() {
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <button onClick={() => { setEditId(c.id); setEditLabel(c.label); setEditOrder(c.display_order); }}
-                          className="font-inter-tight text-[12px] text-[#888078] hover:text-[#e8e4df] cursor-pointer">Edit</button>
-                        <button onClick={() => deleteCategory(c)}
-                          className="font-inter-tight text-[12px] text-red-400/70 hover:text-red-400 cursor-pointer">Delete</button>
+                        <button
+                          onClick={() => { setEditId(c.id); setEditLabel(c.label); setEditOrder(c.display_order); }}
+                          className="font-inter-tight text-[12px] text-[#888078] hover:text-[#e8e4df] cursor-pointer transition-colors"
+                        >Edit</button>
+                        <button
+                          onClick={() => deleteCategory(c)}
+                          className="font-inter-tight text-[12px] text-red-400/70 hover:text-red-400 cursor-pointer transition-colors"
+                        >Delete</button>
                       </div>
                     )}
                   </td>
@@ -150,32 +174,46 @@ export default function AdminCategories() {
 
         {/* Add new category */}
         <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] p-5 space-y-4">
-          <h3 className="font-inter-tight font-medium text-[13px] text-[#e8e4df]">Add new category</h3>
-          <div className="flex gap-3 items-end">
-            <div className="space-y-1.5 flex-1">
+          <div>
+            <h3 className="font-inter-tight font-medium text-[13px] text-[#e8e4df]">Add new category</h3>
+            <p className="font-inter-tight text-[11px] text-[#888078] mt-1">
+              New categories appear as filter tabs on the shop page and become available in the product editor.
+            </p>
+          </div>
+          <div className="flex gap-3 items-end flex-wrap">
+            <div className="space-y-1.5 flex-1 min-w-[180px]">
               <label className="font-inter-tight text-[11px] uppercase tracking-[1.5px] text-[#888078]">Label</label>
-              <input value={newLabel} onChange={e => { setNewLabel(e.target.value); setNewSlug(slugify(e.target.value)); }}
+              <input
+                value={newLabel}
+                onChange={e => { setNewLabel(e.target.value); setNewSlug(slugify(e.target.value)); }}
                 placeholder="e.g. Lace Front"
-                className="w-full bg-[#0e0f11] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2.5 font-inter-tight text-[13px] text-[#e8e4df] placeholder:text-[#888078] outline-none focus:border-[#c9a96e]/40"
+                className="w-full bg-[#0e0f11] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2.5 font-inter-tight text-[13px] text-[#e8e4df] placeholder:text-[#888078] outline-none focus:border-[#c9a96e]/40 transition-colors"
               />
             </div>
             <div className="space-y-1.5 w-48">
               <label className="font-inter-tight text-[11px] uppercase tracking-[1.5px] text-[#888078]">Slug</label>
-              <input value={newSlug} onChange={e => setNewSlug(slugify(e.target.value))}
-                className="w-full bg-[#0e0f11] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2.5 font-mono text-[12px] text-[#e8e4df] outline-none focus:border-[#c9a96e]/40"
+              <input
+                value={newSlug}
+                onChange={e => setNewSlug(slugify(e.target.value))}
+                className="w-full bg-[#0e0f11] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2.5 font-mono text-[12px] text-[#e8e4df] outline-none focus:border-[#c9a96e]/40 transition-colors"
               />
             </div>
             <div className="flex items-center gap-2 pb-1">
               <input type="checkbox" id="filter-chk" checked={newFilter} onChange={e => setNewFilter(e.target.checked)} className="cursor-pointer" />
-              <label htmlFor="filter-chk" className="font-inter-tight text-[12px] text-[#888078] cursor-pointer">Show as filter</label>
+              <label htmlFor="filter-chk" className="font-inter-tight text-[12px] text-[#888078] cursor-pointer select-none">
+                Show as filter tab
+              </label>
             </div>
-            <button onClick={addCategory} disabled={adding || !newLabel || !newSlug}
-              className="bg-[#c9a96e] hover:bg-[#d4b87a] disabled:opacity-40 text-[#0e0f11] font-inter-tight font-medium text-[13px] px-4 py-2.5 rounded-[8px] transition-colors cursor-pointer whitespace-nowrap"
+            <button
+              onClick={addCategory}
+              disabled={adding || !newLabel || !newSlug}
+              className="bg-[#c9a96e] hover:bg-[#d4b87a] disabled:opacity-40 disabled:cursor-not-allowed text-[#0e0f11] font-inter-tight font-medium text-[13px] px-5 py-2.5 rounded-[8px] transition-colors cursor-pointer whitespace-nowrap"
             >
               {adding ? "Adding…" : "Add Category"}
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );

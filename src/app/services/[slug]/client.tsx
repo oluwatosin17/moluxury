@@ -130,7 +130,7 @@ function BookingPanel({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  service: { name: string; description: string };
+  service: { name: string; slug: string; description: string };
 }) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -176,6 +176,21 @@ function BookingPanel({
     const contactValue = contact === "whatsapp" ? whatsapp : email;
     if (!contactValue.trim()) return;
 
+    // Always save the booking to the database regardless of contact method
+    await fetch("/api/send-booking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        serviceName:      service.name,
+        serviceSlug:      service.slug,
+        customerName:     name,
+        preferredDate:    date,
+        contactMethod:    contact,
+        contactValue,
+      }),
+    });
+
+    // For WhatsApp bookings: also open WhatsApp so customer can initiate the conversation
     if (contact === "whatsapp") {
       const msgLines = [
         `Hi MoLuxury! I'd like to book a *${service.name}* appointment.`,
@@ -188,21 +203,9 @@ function BookingPanel({
       ];
       const msg = encodeURIComponent(msgLines.join("\n"));
       window.open(`https://wa.me/2348144730948?text=${msg}`, "_blank", "noopener,noreferrer");
-      setSubmitted(true);
-    } else {
-      await fetch("/api/send-booking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceName: service.name,
-          customerName: name,
-          preferredDate: date,
-          contactMethod: "email",
-          contactValue: email,
-        }),
-      });
-      setSubmitted(true);
     }
+
+    setSubmitted(true);
   };
 
   return (
@@ -385,7 +388,7 @@ export default function ServiceDetailClient({ params: serverParams }: { params?:
       <BookingPanel
         isOpen={bookingOpen}
         onClose={() => setBookingOpen(false)}
-        service={{ name: service.name, description: service.description }}
+        service={{ name: service.name, slug, description: service.description }}
       />
 
       <main className="bg-surface min-h-screen">
