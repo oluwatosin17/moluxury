@@ -1,26 +1,27 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin-client";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const supabase = createAdminSupabaseClient();
 
-  const [products, orders, bookings, pending, recentOrders, recentBookings] = await Promise.all([
-    supabase.from("products").select("*", { count: "exact", head: true }).eq("is_published", true),
-    supabase.from("orders").select("*", { count: "exact", head: true }),
-    supabase.from("bookings").select("*", { count: "exact", head: true }),
-    supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(5),
-    supabase.from("bookings").select("*").order("created_at", { ascending: false }).limit(5),
-  ]);
+  // Run sequentially to avoid any potential parallel execution issues
+  const ordersData = await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(5);
+  const bookingsData = await supabase.from("bookings").select("*").order("created_at", { ascending: false }).limit(5);
+  const productCount = await supabase.from("products").select("id", { count: "exact" }).eq("is_published", true);
+  const orderCount = await supabase.from("orders").select("id", { count: "exact" });
+  const bookingCount = await supabase.from("bookings").select("id", { count: "exact" });
+  const pendingCount = await supabase.from("orders").select("id", { count: "exact" }).eq("status", "pending");
 
   return NextResponse.json({
     stats: {
-      products: products.count ?? 0,
-      orders: orders.count ?? 0,
-      bookings: bookings.count ?? 0,
-      pending: pending.count ?? 0,
+      products: productCount.count ?? 0,
+      orders:   orderCount.count   ?? 0,
+      bookings: bookingCount.count ?? 0,
+      pending:  pendingCount.count ?? 0,
     },
-    recentOrders: recentOrders.data ?? [],
-    recentBookings: recentBookings.data ?? [],
+    recentOrders:   ordersData.data   ?? [],
+    recentBookings: bookingsData.data ?? [],
   });
 }

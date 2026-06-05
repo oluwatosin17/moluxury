@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { CustomerOrderConfirmationEmail, CustomerOrderItem } from "@/emails/order-confirmation-customer";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin-client";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -9,12 +10,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sentOrders = new Set<string>();
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.error("[confirm-order] ❌ RESEND_API_KEY not set");
-    return NextResponse.json({ error: "Email service not configured" }, { status: 503 });
-  }
-
   const body: {
     orderId: string;
     customerName: string;
@@ -42,40 +37,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, duplicate: true });
   }
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-  const adminEmail = process.env.RESEND_TO_EMAIL || "omosope43@gmail.com";
-
-  const html = await render(
-    CustomerOrderConfirmationEmail({ orderId, customerName, customerEmail, items, total, confirmedAt })
-  );
-
-  const { data, error } = await resend.emails.send({
-    from: fromEmail,
-    to: customerEmail,
-    subject: `Your MoLuxury order is confirmed — ${orderId}`,
-    html,
-  });
-
-  if (error) {
-    console.error("[confirm-order] ❌ Customer email failed:", JSON.stringify(error));
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Admin copy (non-fatal)
-  await resend.emails.send({
-    from: fromEmail,
-    to: adminEmail,
-    subject: `New order received: ${orderId} from ${customerName}`,
-    html,
-  }).catch(e => console.error("[confirm-order] ⚠️ Admin copy failed:", e));
-
-  sentOrders.add(orderId);
-
-  // Write to Supabase (non-fatal — never break email flow)
+  // ── 1. Write to Supabase FIRST — always happens regardless of email outcome ──
   try {
-    const { createAdminSupabaseClient } = await import('@/lib/supabase/server');
     const supabase = createAdminSupabaseClient();
-    await supabase.from('orders').upsert({
+    await supabase.from("orders").upsert({
       order_ref: orderId,
       customer_name: customerName,
       customer_email: customerEmail,
@@ -84,16 +49,47 @@ export async function POST(req: NextRequest) {
       city: body.city ?? null,
       state: body.state ?? null,
       zip: body.zip ?? null,
-      country: body.country ?? 'Nigeria',
+      country: body.country ?? "Nigeria",
       additional_notes: body.notes ?? null,
       items,
       subtotal: body.subtotal ?? total,
-      status: 'pending',
-      source: 'website',
-    }, { onConflict: 'order_ref', ignoreDuplicates: true });
+      status: "pending",
+      source: "website",
+    }, { onConflict: "order_ref", ignoreDuplicates: true });
+    sentOrders.add(orderId);
   } catch (e) {
-    console.error('[confirm-order] Supabase write failed (non-fatal):', e);
+    console.error("[confirm-order] ❌ Supabase write failed:", e);
+    // Still continue — attempt emails even if DB write fails
   }
 
-  return NextResponse.json({ success: true, emailId: data?.id });
+  // ── 2. Send emails (non-fatal — DB record already saved) ──
+  if (process.env.RESEND_API_KEY) {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const adminEmail = process.env.RESEND_TO_EMAIL || "omosope43@gmail.com";
+
+    try {
+      const html = await render(
+        CustomerOrderConfirmationEmail({ orderId, customerName, customerEmail, items, total, confirmedAt })
+      );
+      // Customer confirmation
+      await resend.emails.send({
+        from: fromEmail,
+        to: customerEmail,
+        subject: `Your MoLuxury order is confirmed — ${orderId}`,
+        html,
+      }).catch(e => console.warn("[confirm-order] Customer email failed (non-fatal):", e.message));
+
+      // Admin notification
+      await resend.emails.send({
+        from: fromEmail,
+        to: adminEmail,
+        subject: `New order: ${orderId} — ${customerName} — ₦${total.toLocaleString("en-NG")}`,
+        html,
+      }).catch(e => console.warn("[confirm-order] Admin email failed (non-fatal):", e.message));
+    } catch (e) {
+      console.warn("[confirm-order] Email render failed (non-fatal):", e);
+    }
+  }
+
+  return NextResponse.json({ success: true });
 }
