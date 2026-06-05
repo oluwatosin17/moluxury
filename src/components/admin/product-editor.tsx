@@ -93,7 +93,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
   async function save(publish: boolean) {
     if (!name || !slug || !price || slugExists) return;
     setSaving(true);
-    const supabase = createClient();
+
     const payload = {
       slug,
       name,
@@ -109,41 +109,31 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
       is_published: publish,
     };
 
-    let error;
-    if (isNew) {
-      ({ error } = await supabase.from("products").insert(payload));
-    } else {
-      ({ error } = await supabase.from("products").update(payload).eq("id", product!.id));
-    }
+    const res = isNew
+      ? await fetch("/api/admin/product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      : await fetch("/api/admin/product", { method: "PUT",  headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: product!.id, ...payload }) });
 
-    if (error) { showToast(error.message, false); setSaving(false); return; }
+    const json = await res.json();
+    if (!res.ok) { showToast(json.error ?? "Save failed", false); setSaving(false); return; }
 
-    // Revalidate live site
+    // Revalidate live site cache
     try {
-      const secret = process.env.NEXT_PUBLIC_REVALIDATE_SECRET;
-      await fetch(`/api/revalidate?secret=${secret}&slug=${slug}`, { method: "POST" });
+      await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}&slug=${slug}`, { method: "POST" });
     } catch { /* non-fatal */ }
 
     showToast(publish ? "Product saved. Live site updated." : "Draft saved.");
     setSaving(false);
-    if (isNew) router.push(`/admin/products/${slug}/edit`);
+    if (isNew) router.push(`/admin/products/${json.product.slug}/edit`);
   }
 
   async function deleteProduct() {
     if (!product) return;
     const confirmed = window.confirm(
-      `Delete ${product.name}?\n\nThis will permanently remove the product and all its images. This cannot be undone.`
+      `Delete ${product.name}?\n\nThis will permanently remove the product. This cannot be undone.`
     );
     if (!confirmed) return;
-    const supabase = createClient();
-    // Delete images from storage
-    for (const img of product.images) {
-      if (!img.startsWith("/") && !img.startsWith("http")) {
-        const [bucket, ...rest] = img.split("/");
-        await supabase.storage.from(bucket).remove([rest.join("/")]);
-      }
-    }
-    await supabase.from("products").delete().eq("id", product.id);
+    const res = await fetch(`/api/admin/product?id=${product.id}`, { method: "DELETE" });
+    if (!res.ok) { const j = await res.json(); showToast(j.error ?? "Delete failed", false); return; }
     await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}&slug=${product.slug}`, { method: "POST" });
     router.push("/admin/products");
   }
