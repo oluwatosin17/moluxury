@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
 import { getImageUrl } from "@/lib/supabase/utils";
 import AdminTopbar from "@/components/admin/topbar";
 import type { DBProduct } from "@/lib/supabase/types";
@@ -14,11 +13,11 @@ export default function AdminProducts() {
   const [filter, setFilter]     = useState<"all" | "published" | "draft">("all");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("products").select("*").order("display_order").then(({ data }) => {
-      setProducts(data ?? []);
-      setLoading(false);
-    });
+    // Use service-role API so drafts are visible (anon key only sees published via RLS)
+    fetch("/api/admin/products")
+      .then(r => r.json())
+      .then(data => { setProducts(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const filtered = products.filter(p => {
