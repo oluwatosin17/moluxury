@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
   const adminEmail = process.env.RESEND_TO_EMAIL || "omosope43@gmail.com";
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://moluxury.vercel.app";
 
   const html = await render(
     CustomerOrderConfirmationEmail({ orderId, customerName, customerEmail, items, total, confirmedAt })
