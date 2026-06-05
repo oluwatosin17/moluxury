@@ -2,7 +2,7 @@
 import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import { getImageUrl } from "@/lib/supabase/storefront";
+import { getImageUrl } from "@/lib/supabase/utils";
 
 interface ImageUploaderProps {
   slug: string;

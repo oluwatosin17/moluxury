@@ -1,14 +1,8 @@
-import { createAdminSupabaseClient } from './server'
+import { createAdminSupabaseClient } from './admin-client'
+import { getImageUrl } from './utils'
 import type { DBProduct, Category } from './types'
 
-// Convert a Supabase Storage path to a full public URL.
-// Handles legacy /public/ local paths and full https:// URLs too.
-export function getImageUrl(storagePath: string): string {
-  if (!storagePath) return ''
-  if (storagePath.startsWith('http')) return storagePath
-  if (storagePath.startsWith('/')) return storagePath
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${storagePath}`
-}
+export { getImageUrl }
 
 export async function getAllProducts(): Promise<DBProduct[]> {
   const supabase = createAdminSupabaseClient()

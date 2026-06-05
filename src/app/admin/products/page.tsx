@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import { getImageUrl } from "@/lib/supabase/storefront";
+import { getImageUrl } from "@/lib/supabase/utils";
 import AdminTopbar from "@/components/admin/topbar";
 import type { DBProduct } from "@/lib/supabase/types";
 
