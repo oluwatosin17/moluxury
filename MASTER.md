@@ -1,5 +1,5 @@
 # MASTER.md — MoLuxury Project Continuation File
-# Last updated: June 2026 | Session: Admin CMS + Supabase build
+# Last updated: June 2026 | Session: Admin CMS + Supabase build + Cloudinary decision
 # Use this file at the start of every new Claude session
 
 ---
@@ -210,47 +210,107 @@ The `service-images` bucket may not have been set to public — the browser auto
 3. **Confirm Supabase tables exist** — visit Table Editor in Supabase dashboard
 4. **Confirm `service-images` is public** — Storage → check for PUBLIC badge
 
-### Priority 2 — Seed products into Supabase
-The storefront still reads from `products.ts`. Until products are in Supabase, the admin product editor is cosmetic only — changes won't appear on the storefront.
+### Priority 2 — Seed existing 31 products into Supabase DB
 
-Run this SQL in Supabase SQL Editor to seed all 31 products:
+**Status:** The `products` table exists but is EMPTY. The admin dashboard shows no products. The storefront still reads from `products.ts`. These are the same 31 products — they just need to be copied into the database.
+
+**How to do it (two options):**
+
+**Option A — SQL (fastest):** Run the seed SQL in Supabase SQL Editor. The full INSERT statement is in `MOLUXURY_ADMIN_SPEC.md` Section 5.5. It covers all 30 products. The 31st product (`morayo`) is missing from that spec — add it manually:
 ```sql
--- Run the seed SQL from MOLUXURY_ADMIN_SPEC.md Section 5.5
--- It covers all 30 named products with slugs, prices, categories
--- Then add the 31st product (morayo) manually if missing
+INSERT INTO products (slug, name, price_naira, category_slugs, available_lengths, available_densities, texture, display_order)
+VALUES ('morayo', 'Honey Straight Gloss 24"', 295000, '["silky-straight","new-in"]',
+  '["18\"","20\"","22\"","24\"","26\"","28\""]', '["150%","180%","200%","250%"]', 'Silky Straight', 31);
+```
+After running, the `images` column will be empty arrays — product images still served from `/public/products/` via `products.ts` until storefront migration.
+
+**Option B — Admin UI:** After login works, use `/admin/products/new` to recreate products one by one with images. Slower but lets you upload proper Cloudinary images at the same time (see Priority 3 below).
+
+### Priority 3 — Switch image hosting from Supabase Storage → Cloudinary
+
+**Decision made:** Use Cloudinary for all image hosting instead of Supabase Storage.
+
+**Why:**
+- Supabase free tier: 1GB storage total — not enough for 109+ product images at full quality
+- Cloudinary free tier: 25GB storage + 25GB bandwidth/month + automatic WebP/resize/CDN
+- Cloudinary handles image optimisation automatically (serves WebP to modern browsers)
+- No backend code needed — Cloudinary's Upload Widget runs entirely in the browser
+
+**Architecture (exactly as the owner proposed):**
+```
+Admin Panel
+    ↓
+Upload image via Cloudinary Widget (browser-only, no backend)
+    ↓
+Cloudinary stores image + returns URL (e.g. https://res.cloudinary.com/your-cloud/image/upload/...)
+    ↓
+Claude stores that URL in Supabase products.images[] column
+    ↓
+Website displays image — getImageUrl() passes https:// URLs straight through (no changes needed)
 ```
 
-OR: Add products one by one via the admin dashboard after verifying login works.
+**What needs to be built:**
+1. Create free Cloudinary account at cloudinary.com → get `cloud_name`, `upload_preset` (unsigned)
+2. Add env vars: `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=...` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=...`
+3. Replace `src/components/admin/image-uploader.tsx` — swap Supabase Storage upload for Cloudinary Widget
+4. The `getImageUrl()` utility already handles `https://` URLs — NO storefront changes needed
+5. The existing Supabase Storage buckets (`product-images`, `service-images`, `homepage-assets`) can be deleted or left empty — they won't be used
 
-### Priority 3 — Migrate storefront to Supabase (the "golden rule")
-Once products are in Supabase DB, update the storefront pages to read from DB instead of `products.ts`:
+**Cloudinary upload widget implementation (for Claude):**
+```typescript
+// Load Cloudinary widget script in admin layout or image-uploader component
+// Use window.cloudinary.createUploadWidget({ cloud_name, upload_preset, sources: ['local'] })
+// On success callback: receive result.info.secure_url → add to images array
+// Store the full https://res.cloudinary.com/... URL directly in Supabase
+```
+
+**Note:** Do NOT store Cloudinary paths like in the current Supabase Storage approach. Store the FULL URL. The `getImageUrl()` function will return it unchanged.
+
+### Priority 4 — Fix admin ↔ booking/order communication (currently broken)
+
+**Status:** When a customer makes a booking or places an order, nothing appears in the admin dashboard. The admin is receiving no notification.
+
+**Root cause (two separate issues):**
+
+**Issue A — Supabase writes are silently failing:**
+All DB writes in `/api/confirm-order` and `/api/send-booking` are wrapped in `try/catch` and marked "non-fatal". They fail because the service role key is wrong (Priority 1). Fix the key → writes start working → orders and bookings appear in admin dashboard automatically.
+
+**Issue B — Admin email notifications are not delivering:**
+`RESEND_FROM_EMAIL=onboarding@resend.dev` is Resend's sandbox address. Sandbox can only deliver to the Resend account owner's email (`obalanatosin17@gmail.com`). Emails to `omosope43@gmail.com` are silently dropped.
+
+**To fix email notifications:** Verify a domain in Resend dashboard:
+1. Go to resend.com → Domains → Add Domain (e.g. `mail.moluxury.com` or any domain you own)
+2. Add the DNS TXT record Resend gives you to your domain registrar
+3. Wait for verification (5-30 min)
+4. Update in Vercel: `RESEND_FROM_EMAIL=orders@yourdomain.com`
+5. Redeploy
+
+**If you don't have a domain yet:** As a temporary workaround, go to Resend dashboard → Contacts → add `omosope43@gmail.com` as a verified contact. This allows sandbox to deliver to that address.
+
+### Priority 5 — Migrate storefront to Supabase (the "golden rule")
+Only do this AFTER Priority 2 (products seeded) is complete and verified.
+
+Update storefront pages to read from DB instead of `products.ts`:
 
 **Files to update:**
 - `src/app/shop/page.tsx` + `client.tsx` — replace `import { products }` with `getAllProducts()`
 - `src/app/shop/[slug]/page.tsx` + `client.tsx` — replace lookup with `getProductBySlug(slug)`
 - `src/app/sitemap.ts` — replace products import with `getAllProducts()`
-- `src/components/fixed-search.tsx` — already imports from `products.ts`; update to Supabase
+- `src/components/fixed-search.tsx` — update to fetch from Supabase at page load
 
-**Helper already written:** `src/lib/supabase/storefront.ts` has `getAllProducts()`, `getProductBySlug()`, `getCategories()` ready to use.
+**Helper already written:** `src/lib/supabase/storefront.ts` has `getAllProducts()`, `getProductBySlug()`, `getCategories()` — ready to use.
 
-After migration: `products.ts` should be marked deprecated but NOT deleted (kept for reference).
+After migration: add `// DEPRECATED — product data now lives in Supabase. Kept for reference only.` to top of `products.ts`. Do NOT delete it.
 
-### Priority 4 — Cart localStorage persistence
-The cart is lost on page refresh. Wishlist already persists. Add localStorage to cart-context.tsx following the same pattern as wishlist-context.tsx.
+### Priority 6 — Cart localStorage persistence
+The cart is lost on page refresh. Wishlist already persists. Add localStorage to `src/lib/cart-context.tsx` following the exact same pattern as `src/lib/wishlist-context.tsx` (hydration guard, `useEffect` load on mount, save on every change).
 
-### Priority 5 — Email delivery (Resend domain verification)
-`RESEND_FROM_EMAIL=onboarding@resend.dev` is Resend sandbox — can only send to the Resend account owner's email. Customer confirmation emails and admin notifications are NOT reliably delivered.
+### Priority 7 — Custom 404 page
+No `app/not-found.tsx` exists. `notFound()` is called for invalid slugs but falls back to a generic Next.js page. Create a branded page matching the MoLuxury aesthetic.
 
-To fix: Verify a domain (e.g. moluxury.com) in Resend dashboard → DNS TXT record → update `RESEND_FROM_EMAIL` to `orders@moluxury.com` in Vercel env vars.
-
-### Priority 6 — Upload product images to Supabase Storage
-Current product images are in `/public/products/`. These work fine for the storefront but can't be managed from the admin. For full CMS control, upload all 109 product images to the `product-images` bucket and update the DB image paths.
-
-### Priority 7 — Upload UI/section images to Supabase Storage
-Current homepage/service images use expiring Figma URLs (assets.ts). Use `/admin/media` to upload replacements to `homepage-assets/` and `service-images/` buckets, then update `src/lib/assets.ts` with the permanent Supabase URLs.
-
-### Priority 8 — Custom 404 page
-No `app/not-found.tsx` exists. `notFound()` is called for invalid slugs but there's no branded page.
+### Priority 8 — Upload UI section images (fix expiring Figma URLs)
+Current homepage/service images use expiring Figma URLs (`src/lib/assets.ts`). These break after ~7 days.
+Use `/admin/media` to upload replacements to Cloudinary OR Supabase `homepage-assets/`, then update `src/lib/assets.ts` with the permanent URLs and remove `www.figma.com` from `next.config.mjs` allowed image domains.
 
 ---
 
@@ -338,13 +398,18 @@ await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}
 ```
 This triggers Next.js ISR to regenerate `/shop/[slug]`, `/shop`, and `/`. The live site updates within 60 seconds.
 
-### Image storage paths
-Images stored in Supabase are stored as **paths**, not full URLs:
-- Good: `product-images/imani/1234567890.jpg`
-- Bad: `https://aurirjornlsqepblndwa.supabase.co/storage/v1/...`
+### Image storage — decided: Cloudinary
+Store FULL `https://res.cloudinary.com/...` URLs directly in Supabase `products.images[]`.
+Do NOT store paths. The `getImageUrl()` function returns `https://` URLs unchanged.
 
-Always use `getImageUrl(path)` from `src/lib/supabase/utils.ts` to convert.
-Legacy `/public/` paths (`/products/imani-1.jpg`) pass through `getImageUrl` unchanged.
+Legacy images still in `/public/products/` are served fine — `getImageUrl('/products/slug-1.jpg')` returns `/products/slug-1.jpg` unchanged. No migration of existing images is required until you want admin-managed images.
+
+### `getImageUrl()` rules
+```
+https://... URL  →  returned as-is          (Cloudinary, Figma, any CDN)
+/public/ path    →  returned as-is          (local Next.js public folder)
+supabase path    →  built into full URL     (legacy, avoid for new images)
+```
 
 ### ESLint is strict on Vercel
 Any `no-unused-vars` violation causes a build failure. Run `npx tsc --noEmit` locally before pushing.
@@ -377,5 +442,55 @@ Any `no-unused-vars` violation causes a build failure. Run `npx tsc --noEmit` lo
 
 ---
 
+---
+
+## 11. CLOUDINARY SETUP (for next session)
+
+When implementing Cloudinary:
+
+**Step 1 — Create account + get credentials**
+1. Go to cloudinary.com → free account
+2. Dashboard → Settings → Upload → Add upload preset → set to "Unsigned"
+3. Note your `Cloud Name` and the unsigned `Upload Preset` name
+
+**Step 2 — Add env vars to `.env.local` AND Vercel**
+```
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your-unsigned-preset
+```
+
+**Step 3 — Install the widget**
+No npm package needed. Add this script to `src/app/admin/layout.tsx`:
+```tsx
+<Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="beforeInteractive" />
+```
+
+**Step 4 — Rewrite `src/components/admin/image-uploader.tsx`**
+Replace the Supabase Storage upload logic with:
+```typescript
+function openCloudinaryWidget(onSuccess: (url: string) => void) {
+  const widget = (window as any).cloudinary.createUploadWidget({
+    cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+    sources: ['local', 'url'],
+    multiple: true,
+    maxFiles: 10,
+    clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
+    maxFileSize: 10000000,
+  }, (error: unknown, result: { event: string; info: { secure_url: string } }) => {
+    if (!error && result.event === 'success') {
+      onSuccess(result.info.secure_url) // full https://res.cloudinary.com/... URL
+    }
+  })
+  widget.open()
+}
+```
+
+**Step 5 — Confirm storefront works**
+No storefront changes needed. `getImageUrl('https://res.cloudinary.com/...')` returns the URL unchanged.
+
+---
+
 *Generated at end of session — June 2026. Covers work done across 2 Claude sessions.*
-*Next session should start by verifying service role key + testing admin login before any new work.*
+*Updated with: Cloudinary image hosting decision, product seeding gap, admin/booking communication root cause.*
+*Next session start checklist: (1) fix service role key, (2) test admin login, (3) seed products SQL, (4) implement Cloudinary uploader.*
