@@ -226,11 +226,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
         {/* Section 3 — Images */}
         <section className="space-y-4">
           <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Images</h2>
-          {!slug ? (
-            <p className="font-inter-tight text-[13px] text-[#888078]">Enter a slug above to enable image upload.</p>
-          ) : (
-            <ImageUploader slug={slug} images={images} onChange={setImages} />
-          )}
+          <ImageUploader images={images} onChange={setImages} />
           <p className="font-inter-tight text-[11px] text-[#888078]">
             First image is the primary thumbnail. Hover any image to reorder or delete.
           </p>

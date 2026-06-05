@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import AdminTopbar from "@/components/admin/topbar";
 import { OrderStatusBadge } from "@/components/admin/status-badge";
 import Link from "next/link";
@@ -13,25 +12,15 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
-    Promise.all([
-      supabase.from("products").select("*", { count: "exact", head: true }).eq("is_published", true),
-      supabase.from("orders").select("*", { count: "exact", head: true }),
-      supabase.from("bookings").select("*", { count: "exact", head: true }),
-      supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(5),
-      supabase.from("bookings").select("*").order("created_at", { ascending: false }).limit(5),
-    ]).then(([p, o, b, pending, recentO, recentB]) => {
-      setStats({
-        products: p.count ?? 0,
-        orders:   o.count ?? 0,
-        bookings: b.count ?? 0,
-        pending:  pending.count ?? 0,
-      });
-      setOrders(recentO.data ?? []);
-      setBookings(recentB.data ?? []);
-      setLoading(false);
-    });
+    fetch("/api/admin/stats")
+      .then(r => r.json())
+      .then(({ stats: s, recentOrders: o, recentBookings: b }) => {
+        setStats(s);
+        setOrders(o);
+        setBookings(b);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   function fmt(n: number) { return `₦${n.toLocaleString("en-NG")}`; }

@@ -1,56 +1,72 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
 import { getImageUrl } from "@/lib/supabase/utils";
 
 interface ImageUploaderProps {
-  slug: string;
-  bucket?: string;
-  images: string[];        // array of storage paths (or full URLs for legacy)
+  images: string[];
   onChange: (images: string[]) => void;
 }
 
-export default function ImageUploader({
-  slug,
-  bucket = "product-images",
-  images,
-  onChange,
-}: ImageUploaderProps) {
+export default function ImageUploader({ images, onChange }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  const upload = useCallback(async (files: FileList) => {
-    if (!files.length || !slug) return;
+  function openWidget() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cloudinary = (window as any).cloudinary;
+    if (!cloudinary) {
+      alert("Cloudinary widget not loaded yet. Please wait a moment and try again.");
+      return;
+    }
+
     setUploading(true);
-    const supabase = createClient();
-    const newPaths: string[] = [...images];
 
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${slug}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) { console.error("Upload error:", error); continue; }
-      // Store the full storage path including bucket prefix for getImageUrl()
-      newPaths.push(`${bucket}/${data.path}`);
-    }
+    const widget = cloudinary.createUploadWidget(
+      {
+        cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+        uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+        sources: ["local", "url"],
+        multiple: true,
+        maxFiles: 10,
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
+        maxFileSize: 10000000,
+        folder: "moluxury",
+        styles: {
+          palette: {
+            window: "#16181d",
+            windowBorder: "#c9a96e",
+            tabIcon: "#c9a96e",
+            menuIcons: "#888078",
+            textDark: "#e8e4df",
+            textLight: "#e8e4df",
+            link: "#c9a96e",
+            action: "#c9a96e",
+            inactiveTabIcon: "#888078",
+            error: "#f44235",
+            inProgress: "#c9a96e",
+            complete: "#20b832",
+            sourceBg: "#0e0f11",
+          },
+        },
+      },
+      (error: unknown, result: { event: string; info: { secure_url: string } }) => {
+        if (error) {
+          setUploading(false);
+          return;
+        }
+        if (result.event === "success") {
+          onChange([...images, result.info.secure_url]);
+        }
+        if (result.event === "close") {
+          setUploading(false);
+        }
+      }
+    );
 
-    onChange(newPaths);
-    setUploading(false);
-  }, [images, slug, bucket, onChange]);
+    widget.open();
+  }
 
-  async function removeImage(idx: number) {
-    const path = images[idx];
-    const supabase = createClient();
-    // Only delete from storage if it's a storage path (not a /public/ local path or https URL)
-    if (!path.startsWith("/") && !path.startsWith("http")) {
-      const filePath = path.replace(`${bucket}/`, "");
-      await supabase.storage.from(bucket).remove([filePath]);
-    }
+  function removeImage(idx: number) {
     onChange(images.filter((_, i) => i !== idx));
   }
 
@@ -64,7 +80,6 @@ export default function ImageUploader({
 
   return (
     <div className="space-y-4">
-      {/* Image grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-4 gap-3">
           {images.map((img, idx) => (
@@ -81,7 +96,6 @@ export default function ImageUploader({
                   Primary
                 </span>
               )}
-              {/* Hover actions */}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                 {idx !== 0 && (
                   <button
@@ -105,22 +119,19 @@ export default function ImageUploader({
         </div>
       )}
 
-      {/* Drop zone */}
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); upload(e.dataTransfer.files); }}
-        className={`border-2 border-dashed rounded-[12px] py-10 text-center cursor-pointer transition-colors ${
-          dragOver
-            ? "border-[#c9a96e]/60 bg-[#c9a96e]/5"
+      <button
+        type="button"
+        onClick={openWidget}
+        className={`w-full border-2 border-dashed rounded-[12px] py-10 text-center cursor-pointer transition-colors ${
+          uploading
+            ? "border-[#c9a96e]/40 bg-[#c9a96e]/5"
             : "border-[rgba(255,255,255,0.1)] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.02)]"
         }`}
       >
         {uploading ? (
           <div className="flex items-center justify-center gap-2">
             <div className="w-4 h-4 border-2 border-[#c9a96e] border-t-transparent rounded-full animate-spin" />
-            <span className="font-inter-tight text-[13px] text-[#888078]">Uploading…</span>
+            <span className="font-inter-tight text-[13px] text-[#888078]">Opening upload widget…</span>
           </div>
         ) : (
           <>
@@ -129,20 +140,12 @@ export default function ImageUploader({
               <path d="M3 16.5V19a1 1 0 001 1h16a1 1 0 001-1v-2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
             <p className="font-inter-tight text-[13px] text-[#888078]">
-              Drop images here or <span className="text-[#c9a96e]">click to browse</span>
+              Click to upload via <span className="text-[#c9a96e]">Cloudinary</span>
             </p>
-            <p className="font-inter-tight text-[11px] text-[#888078]/60 mt-1">JPEG, PNG, WebP · max 10MB</p>
+            <p className="font-inter-tight text-[11px] text-[#888078]/60 mt-1">JPEG, PNG, WebP · max 10MB · multiple allowed</p>
           </>
         )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          onChange={e => e.target.files && upload(e.target.files)}
-        />
-      </div>
+      </button>
     </div>
   );
 }
