@@ -1,0 +1,364 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import ImageUploader from "./image-uploader";
+import type { DBProduct, Category } from "@/lib/supabase/types";
+
+interface ProductEditorProps {
+  product?: DBProduct;       // undefined = new product
+  categories: Category[];
+}
+
+const DEFAULT_LENGTHS = [`18"`, `20"`, `22"`, `24"`, `26"`, `28"`];
+const DEFAULT_DENSITIES = ["150%", "180%", "200%", "250%"];
+
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function fmtPrice(n: number) {
+  if (!n) return "";
+  return `₦${n.toLocaleString("en-NG")}`;
+}
+
+export default function ProductEditor({ product, categories }: ProductEditorProps) {
+  const router = useRouter();
+  const isNew = !product;
+
+  const [name, setName]               = useState(product?.name ?? "");
+  const [slug, setSlug]               = useState(product?.slug ?? "");
+  const [slugManual, setSlugManual]   = useState(false);
+  const [price, setPrice]             = useState<number | "">(product?.price_naira ?? "");
+  const [description, setDescription] = useState(product?.description ?? "");
+  const [images, setImages]           = useState<string[]>(product?.images ?? []);
+  const [cats, setCats]               = useState<string[]>(product?.category_slugs ?? []);
+  const [lengths, setLengths]         = useState<string[]>(product?.available_lengths ?? DEFAULT_LENGTHS);
+  const [densities, setDensities]     = useState<string[]>(product?.available_densities ?? DEFAULT_DENSITIES);
+  const [texture, setTexture]         = useState(product?.texture ?? "");
+  const [capType, setCapType]         = useState(product?.cap_type ?? "HD Transparent Lace");
+  const [origin, setOrigin]           = useState(product?.origin ?? "100% Virgin Human Hair");
+  const [published, setPublished]     = useState(product?.is_published ?? true);
+  const [slugExists, setSlugExists]   = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://moluxury.vercel.app";
+
+  // Auto-generate slug from name when new product
+  useEffect(() => {
+    if (!slugManual && isNew) setSlug(slugify(name));
+  }, [name, slugManual, isNew]);
+
+  // Check slug uniqueness
+  useEffect(() => {
+    if (!slug || (!isNew && slug === product?.slug)) { setSlugExists(false); return; }
+    const t = setTimeout(async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from("products").select("id").eq("slug", slug).single();
+      setSlugExists(!!data && (isNew || data.id !== product?.id));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [slug, isNew, product?.id, product?.slug]);
+
+  function toggleCat(catSlug: string) {
+    setCats(prev => prev.includes(catSlug) ? prev.filter(c => c !== catSlug) : [...prev, catSlug]);
+  }
+  function toggleLength(l: string) {
+    setLengths(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
+  }
+  function toggleDensity(d: string) {
+    setDensities(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  }
+
+  function showToast(msg: string, ok = true) {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  async function save(publish: boolean) {
+    if (!name || !slug || !price || slugExists) return;
+    setSaving(true);
+    const supabase = createClient();
+    const payload = {
+      slug,
+      name,
+      price_naira: Number(price),
+      description,
+      images,
+      category_slugs: cats,
+      available_lengths: lengths,
+      available_densities: densities,
+      texture,
+      cap_type: capType,
+      origin,
+      is_published: publish,
+    };
+
+    let error;
+    if (isNew) {
+      ({ error } = await supabase.from("products").insert(payload));
+    } else {
+      ({ error } = await supabase.from("products").update(payload).eq("id", product!.id));
+    }
+
+    if (error) { showToast(error.message, false); setSaving(false); return; }
+
+    // Revalidate live site
+    try {
+      const secret = process.env.NEXT_PUBLIC_REVALIDATE_SECRET;
+      await fetch(`/api/revalidate?secret=${secret}&slug=${slug}`, { method: "POST" });
+    } catch { /* non-fatal */ }
+
+    showToast(publish ? "Product saved. Live site updated." : "Draft saved.");
+    setSaving(false);
+    if (isNew) router.push(`/admin/products/${slug}/edit`);
+  }
+
+  async function deleteProduct() {
+    if (!product) return;
+    const confirmed = window.confirm(
+      `Delete ${product.name}?\n\nThis will permanently remove the product and all its images. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    const supabase = createClient();
+    // Delete images from storage
+    for (const img of product.images) {
+      if (!img.startsWith("/") && !img.startsWith("http")) {
+        const [bucket, ...rest] = img.split("/");
+        await supabase.storage.from(bucket).remove([rest.join("/")]);
+      }
+    }
+    await supabase.from("products").delete().eq("id", product.id);
+    await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}&slug=${product.slug}`, { method: "POST" });
+    router.push("/admin/products");
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-[10px] font-inter-tight text-[13px] shadow-xl transition-all ${
+          toast.ok ? "bg-green-500/90 text-white" : "bg-red-500/90 text-white"
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="max-w-3xl mx-auto px-8 py-8 space-y-10">
+
+        {/* Section 1 — Core Info */}
+        <section className="space-y-5">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">
+            Core Info
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2 space-y-1.5">
+              <label className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Product Name</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder='e.g. "HD Lace 22""'
+                className="w-full bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-4 py-3 font-inter-tight text-[14px] text-[#e8e4df] placeholder:text-[#888078] outline-none transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Slug</label>
+              <input
+                value={slug}
+                onChange={e => { setSlug(slugify(e.target.value)); setSlugManual(true); }}
+                placeholder="e.g. hd-lace-22"
+                className={`w-full bg-[#16181d] border rounded-[8px] px-4 py-3 font-mono text-[13px] outline-none transition-colors ${
+                  slugExists ? "border-red-500/50 text-red-400" : "border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 text-[#e8e4df]"
+                }`}
+              />
+              <p className="font-inter-tight text-[11px] text-[#888078]">
+                {slugExists ? (
+                  <span className="text-red-400">Slug already in use</span>
+                ) : slug ? (
+                  <span>{baseUrl}/shop/<span className="text-[#c9a96e]">{slug}</span></span>
+                ) : null}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Price (₦)</label>
+              <input
+                type="number"
+                value={price}
+                onChange={e => setPrice(e.target.value ? Number(e.target.value) : "")}
+                placeholder="e.g. 346000"
+                className="w-full bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-4 py-3 font-inter-tight text-[14px] text-[#e8e4df] placeholder:text-[#888078] outline-none transition-colors"
+              />
+              {price ? <p className="font-inter-tight text-[11px] text-[#c9a96e]">{fmtPrice(Number(price))}</p> : null}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPublished(p => !p)}
+              className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${published ? "bg-[#c9a96e]" : "bg-[rgba(255,255,255,0.1)]"}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${published ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
+            <span className="font-inter-tight text-[13px] text-[#e8e4df]">
+              {published ? "Published — visible on storefront" : "Draft — hidden from storefront"}
+            </span>
+          </div>
+        </section>
+
+        {/* Section 2 — Description */}
+        <section className="space-y-4">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Description</h2>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={5}
+            placeholder="Write in MoLuxury's voice — literary, one paragraph, no adjective excess."
+            className="w-full bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-4 py-3 font-inter-tight text-[14px] text-[#e8e4df] placeholder:text-[#888078] outline-none transition-colors resize-none"
+          />
+          <p className="font-inter-tight text-[11px] text-[#888078]">{description.length} characters</p>
+        </section>
+
+        {/* Section 3 — Images */}
+        <section className="space-y-4">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Images</h2>
+          {!slug ? (
+            <p className="font-inter-tight text-[13px] text-[#888078]">Enter a slug above to enable image upload.</p>
+          ) : (
+            <ImageUploader slug={slug} images={images} onChange={setImages} />
+          )}
+          <p className="font-inter-tight text-[11px] text-[#888078]">
+            First image is the primary thumbnail. Hover any image to reorder or delete.
+          </p>
+        </section>
+
+        {/* Section 4 — Categories */}
+        <section className="space-y-4">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Categories</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {categories.filter(c => c.slug !== "all-pieces").map(c => (
+              <label key={c.id} className="flex items-center gap-2.5 cursor-pointer group">
+                <span
+                  onClick={() => toggleCat(c.slug)}
+                  className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                    cats.includes(c.slug)
+                      ? "bg-[#c9a96e] border-[#c9a96e]"
+                      : "border-[rgba(255,255,255,0.2)] hover:border-[#c9a96e]/50"
+                  }`}
+                >
+                  {cats.includes(c.slug) && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5l2.5 2.5L8 3" stroke="#0e0f11" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+                <span
+                  onClick={() => toggleCat(c.slug)}
+                  className="font-inter-tight text-[13px] text-[#e8e4df] select-none"
+                >
+                  {c.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* Section 5 — Variants */}
+        <section className="space-y-5">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Available Variants</h2>
+          <div className="space-y-3">
+            <p className="font-inter-tight text-[12px] text-[#888078] uppercase tracking-[1px]">Lengths</p>
+            <div className="flex flex-wrap gap-2">
+              {DEFAULT_LENGTHS.map(l => (
+                <button
+                  key={l} type="button"
+                  onClick={() => toggleLength(l)}
+                  className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
+                    lengths.includes(l)
+                      ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
+                      : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
+                  }`}
+                >{l}</button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="font-inter-tight text-[12px] text-[#888078] uppercase tracking-[1px]">Densities</p>
+            <div className="flex flex-wrap gap-2">
+              {DEFAULT_DENSITIES.map(d => (
+                <button
+                  key={d} type="button"
+                  onClick={() => toggleDensity(d)}
+                  className={`px-3 py-1.5 rounded-full font-inter-tight text-[12px] border transition-colors cursor-pointer ${
+                    densities.includes(d)
+                      ? "bg-[#c9a96e]/10 border-[#c9a96e]/50 text-[#c9a96e]"
+                      : "border-[rgba(255,255,255,0.1)] text-[#888078] hover:border-[rgba(255,255,255,0.2)]"
+                  }`}
+                >{d}</button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 6 — Specifications */}
+        <section className="space-y-4">
+          <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Specifications</h2>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Texture",  value: texture,  set: setTexture,  placeholder: "e.g. Body Wave" },
+              { label: "Cap Type", value: capType,  set: setCapType,  placeholder: "HD Transparent Lace" },
+              { label: "Origin",   value: origin,   set: setOrigin,   placeholder: "100% Virgin Human Hair" },
+            ].map(({ label, value, set, placeholder }) => (
+              <div key={label} className="space-y-1.5">
+                <label className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">{label}</label>
+                <input
+                  value={value}
+                  onChange={e => set(e.target.value)}
+                  placeholder={placeholder}
+                  className="w-full bg-[#16181d] border border-[rgba(255,255,255,0.07)] focus:border-[#c9a96e]/50 rounded-[8px] px-3 py-2.5 font-inter-tight text-[13px] text-[#e8e4df] placeholder:text-[#888078] outline-none transition-colors"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Save buttons */}
+        <section className="flex items-center justify-between pt-4 border-t border-[rgba(255,255,255,0.07)]">
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => save(false)}
+              disabled={saving || !name || !slug || !price || slugExists}
+              className="px-5 py-2.5 rounded-[8px] border border-[rgba(255,255,255,0.15)] font-inter-tight text-[13px] text-[#e8e4df] hover:bg-[rgba(255,255,255,0.04)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              Save Draft
+            </button>
+            <button
+              type="button"
+              onClick={() => save(true)}
+              disabled={saving || !name || !slug || !price || slugExists}
+              className="px-5 py-2.5 rounded-[8px] bg-[#c9a96e] hover:bg-[#d4b87a] font-inter-tight text-[13px] text-[#0e0f11] font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              {saving ? "Saving…" : "Save & Publish"}
+            </button>
+          </div>
+
+          {!isNew && (
+            <button
+              type="button"
+              onClick={deleteProduct}
+              className="px-4 py-2.5 rounded-[8px] font-inter-tight text-[13px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              Delete product
+            </button>
+          )}
+        </section>
+
+      </div>
+    </div>
+  );
+}

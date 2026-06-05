@@ -30,5 +30,27 @@ export async function POST(req: NextRequest) {
   }
 
   console.log("[send-booking] ✅ Email sent:", data?.id);
+
+  // Write to Supabase (non-fatal)
+  try {
+    const { createAdminSupabaseClient } = await import('@/lib/supabase/server');
+    const supabase = createAdminSupabaseClient();
+    await supabase.from('bookings').insert({
+      booking_ref: `BK-${Date.now().toString(36).toUpperCase()}`,
+      customer_name: customerName,
+      customer_email: contactMethod === 'email' ? contactValue : null,
+      customer_phone: contactMethod === 'whatsapp' ? contactValue : null,
+      contact_method: contactMethod,
+      service_slug: (body.serviceSlug as string) ?? serviceName.toLowerCase().replace(/\s+/g, '-'),
+      service_name: serviceName,
+      service_price_from: (body.servicePriceFrom as number) ?? null,
+      preferred_date: preferredDate || null,
+      status: 'new',
+      source: 'website',
+    });
+  } catch (e) {
+    console.error('[send-booking] Supabase write failed (non-fatal):', e);
+  }
+
   return NextResponse.json({ success: true });
 }
