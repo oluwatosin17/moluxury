@@ -90,9 +90,15 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
     setTimeout(() => setToast(null), 4000);
   }
 
-  async function save(publish: boolean) {
+  // `save` always uses the `published` state — the toggle is the sole authority.
+  // An optional `forcePublish` lets the "Save & Publish" shortcut override it once.
+  async function save(forcePublish?: boolean) {
     if (!name || !slug || !price || slugExists) return;
     setSaving(true);
+
+    const publishValue = forcePublish !== undefined ? forcePublish : published;
+    // Keep the toggle in sync with what we're actually writing
+    setPublished(publishValue);
 
     const payload = {
       slug,
@@ -106,7 +112,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
       texture,
       cap_type: capType,
       origin,
-      is_published: publish,
+      is_published: publishValue,
     };
 
     const res = isNew
@@ -121,7 +127,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
       await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_REVALIDATE_SECRET}&slug=${slug}`, { method: "POST" });
     } catch { /* non-fatal */ }
 
-    showToast(publish ? "Product saved. Live site updated." : "Draft saved.");
+    showToast(publishValue ? "Product published. Live site updated." : "Saved as draft — hidden from storefront.");
     setSaving(false);
     if (isNew) router.push(`/admin/products/${json.product.slug}/edit`);
   }
@@ -389,24 +395,28 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
           </div>
         </section>
 
-        {/* Save buttons */}
+        {/* Save buttons — the toggle above is the publish switch; Save respects it */}
         <section className="flex items-center justify-between pt-4 border-t border-[rgba(255,255,255,0.07)]">
           <div className="flex gap-3">
+            {/* Secondary: always force-draft (quick unpublish without toggling) */}
+            {published && (
+              <button
+                type="button"
+                onClick={() => save(false)}
+                disabled={saving || !name || !slug || !price || slugExists}
+                className="px-5 py-2.5 rounded-[8px] border border-[rgba(255,255,255,0.15)] font-inter-tight text-[13px] text-[#888078] hover:text-[#e8e4df] hover:bg-[rgba(255,255,255,0.04)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                Save as Draft
+              </button>
+            )}
+            {/* Primary: saves using whatever the toggle is set to */}
             <button
               type="button"
-              onClick={() => save(false)}
-              disabled={saving || !name || !slug || !price || slugExists}
-              className="px-5 py-2.5 rounded-[8px] border border-[rgba(255,255,255,0.15)] font-inter-tight text-[13px] text-[#e8e4df] hover:bg-[rgba(255,255,255,0.04)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            >
-              Save Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => save(true)}
+              onClick={() => save()}
               disabled={saving || !name || !slug || !price || slugExists}
               className="px-5 py-2.5 rounded-[8px] bg-[#c9a96e] hover:bg-[#d4b87a] font-inter-tight text-[13px] text-[#0e0f11] font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
-              {saving ? "Saving…" : "Save & Publish"}
+              {saving ? "Saving…" : published ? "Save & Publish" : "Save as Draft"}
             </button>
           </div>
 
