@@ -69,6 +69,13 @@ export default function ProductClient({ product, relatedProducts }: Props) {
     densities.includes("200%") ? "200%" : densities[0]
   );
 
+  const cfg = product.pricing_config;
+  const displayedPrice = cfg
+    ? product.price_naira +
+      (cfg.length_surcharges[selectedLength] ?? 0) +
+      (cfg.density_surcharges[selectedDensity] ?? 0)
+    : product.price_naira;
+
   const { toggleItem, isLiked } = useWishlist();
   const { addItem } = useCart();
 
@@ -102,8 +109,8 @@ export default function ProductClient({ product, relatedProducts }: Props) {
   const handleAddToCart = () => {
     addItem({
       name: product.name,
-      price: fmtPrice(product.price_naira),
-      priceNum: product.price_naira,
+      price: fmtPrice(displayedPrice),
+      priceNum: displayedPrice,
       src: gallery[0],
       slug: product.slug,
       length: selectedLength,
@@ -123,7 +130,7 @@ export default function ProductClient({ product, relatedProducts }: Props) {
     offers: {
       "@type": "Offer",
       priceCurrency: "NGN",
-      price: product.price_naira,
+      price: product.price_naira,   // base price in schema
       availability: "https://schema.org/InStock",
       url: `${BASE_URL}/shop/${product.slug}`,
     },
@@ -198,8 +205,8 @@ export default function ProductClient({ product, relatedProducts }: Props) {
                     {isLiked(product.name) ? <HeartFill size={18} color="#181b25" /> : <HeartLine size={18} color="#181b25" />}
                   </button>
                 </div>
-                <span className="font-inter-tight text-[20px] tracking-[-0.5px] text-secondary">
-                  {fmtPrice(product.price_naira)}
+                <span className="font-inter-tight text-[20px] tracking-[-0.5px] text-secondary transition-all duration-150">
+                  {fmtPrice(displayedPrice)}
                 </span>
               </div>
 

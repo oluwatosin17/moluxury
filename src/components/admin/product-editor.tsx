@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ImageUploader from "./image-uploader";
-import type { DBProduct, Category } from "@/lib/supabase/types";
+import type { DBProduct, Category, ProductPricingConfig } from "@/lib/supabase/types";
 
 interface ProductEditorProps {
   product?: DBProduct;       // undefined = new product
@@ -41,6 +41,9 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
   const [capType, setCapType]         = useState(product?.cap_type ?? "HD Transparent Lace");
   const [origin, setOrigin]           = useState(product?.origin ?? "100% Virgin Human Hair");
   const [published, setPublished]     = useState(product?.is_published ?? true);
+  const [pricingConfig, setPricingConfig] = useState<ProductPricingConfig>(
+    product?.pricing_config ?? { length_surcharges: {}, density_surcharges: {} }
+  );
   const [slugExists, setSlugExists]   = useState(false);
   const [saving, setSaving]           = useState(false);
   const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
@@ -113,6 +116,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
       cap_type: capType,
       origin,
       is_published: publishValue,
+      pricing_config: pricingConfig,
     };
 
     const res = isNew
@@ -373,7 +377,77 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
           </div>
         </section>
 
-        {/* Section 6 — Specifications */}
+        {/* Section 6 — Variant Pricing */}
+        <section className="space-y-5">
+          <div>
+            <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Variant Pricing</h2>
+            <p className="font-inter-tight text-[11px] text-[#888078] mt-1">
+              Set a surcharge for each length and density. Leave blank or 0 for no extra charge. The base price above is the minimum.
+            </p>
+          </div>
+
+          {/* Length surcharges */}
+          {lengths.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Length Surcharges (₦)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {lengths.map((len) => (
+                  <div key={len} className="flex items-center gap-2 bg-[#16181d] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2">
+                    <span className="font-inter-tight text-[13px] text-[#e8e4df] w-16 shrink-0">{len}</span>
+                    <span className="font-inter-tight text-[12px] text-[#888078]">+₦</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={500}
+                      value={pricingConfig.length_surcharges[len] ?? ""}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setPricingConfig((prev) => ({
+                          ...prev,
+                          length_surcharges: { ...prev.length_surcharges, [len]: val },
+                        }));
+                      }}
+                      className="flex-1 bg-transparent font-inter-tight text-[13px] text-[#e8e4df] outline-none text-right placeholder:text-[#444]"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Density surcharges */}
+          {densities.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Density Surcharges (₦)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {densities.map((den) => (
+                  <div key={den} className="flex items-center gap-2 bg-[#16181d] border border-[rgba(255,255,255,0.07)] rounded-[8px] px-3 py-2">
+                    <span className="font-inter-tight text-[13px] text-[#e8e4df] w-16 shrink-0">{den}</span>
+                    <span className="font-inter-tight text-[12px] text-[#888078]">+₦</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={500}
+                      value={pricingConfig.density_surcharges[den] ?? ""}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setPricingConfig((prev) => ({
+                          ...prev,
+                          density_surcharges: { ...prev.density_surcharges, [den]: val },
+                        }));
+                      }}
+                      className="flex-1 bg-transparent font-inter-tight text-[13px] text-[#e8e4df] outline-none text-right placeholder:text-[#444]"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Section 8 — Specifications */}
         <section className="space-y-4">
           <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Specifications</h2>
           <div className="grid grid-cols-3 gap-4">

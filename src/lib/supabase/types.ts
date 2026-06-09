@@ -19,6 +19,7 @@ export interface DBProduct {
   texture?: string
   cap_type: string
   origin: string
+  pricing_config?: ProductPricingConfig | null
   is_published: boolean
   display_order: number
   created_at: string
@@ -88,4 +89,9 @@ export interface Booking {
   status: BookingStatus
   admin_notes?: string
   source: string
+}
+
+export interface ProductPricingConfig {
+  length_surcharges: Record<string, number>   // e.g. { '18"': 0, '20"': 5000 }
+  density_surcharges: Record<string, number>  // e.g. { '150%': 0, '180%': 5000 }
 }
