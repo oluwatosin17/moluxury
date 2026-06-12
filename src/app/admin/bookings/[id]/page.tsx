@@ -96,13 +96,13 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         }
       />
 
-      <div className="flex-1 flex gap-6 px-8 py-6 overflow-y-auto">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto">
         {/* Left */}
-        <div className="flex-1 space-y-5 min-w-0">
+        <div className="flex-1 space-y-4 sm:space-y-5 min-w-0">
 
           <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] p-5 space-y-4">
             <h3 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Booking Details</h3>
-            <div className="grid grid-cols-2 gap-4 text-[13px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-[13px]">
               {[
                 { label: "Customer",       value: booking.customer_name },
                 { label: "Service",        value: booking.service_name },
@@ -141,8 +141,8 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div className="w-72 space-y-4 shrink-0">
+        {/* Right sidebar — full width on mobile */}
+        <div className="w-full lg:w-72 space-y-4 shrink-0">
 
           <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] p-5 space-y-4">
             <h3 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Status</h3>

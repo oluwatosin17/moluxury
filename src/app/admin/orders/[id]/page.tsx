@@ -105,14 +105,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         }
       />
 
-      <div className="flex-1 flex gap-6 px-8 py-6 overflow-y-auto">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto">
         {/* Left — order info */}
-        <div className="flex-1 space-y-6 min-w-0">
+        <div className="flex-1 space-y-4 sm:space-y-6 min-w-0">
 
           {/* Customer */}
           <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] p-5 space-y-3">
             <h3 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Customer</h3>
-            <div className="grid grid-cols-2 gap-4 text-[13px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-[13px]">
               {[
                 { label: "Name",    value: order.customer_name },
                 { label: "Email",   value: order.customer_email },
@@ -142,7 +142,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
               <h3 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Items</h3>
             </div>
-            <table className="w-full">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px]">
               <thead>
                 <tr className="border-b border-[rgba(255,255,255,0.07)]">
                   {["Product", "Length", "Density", "Qty", "Price", "Subtotal"].map(h => (
@@ -163,6 +164,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 ))}
               </tbody>
             </table>
+            </div>
             <div className="px-5 py-4 border-t border-[rgba(255,255,255,0.07)] flex justify-end">
               <p className="font-inter-tight text-[14px] text-[#e8e4df]">
                 Total: <span className="text-[#c9a96e] font-medium ml-2">{fmt(order.subtotal)}</span>
@@ -184,8 +186,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div className="w-72 space-y-4 shrink-0">
+        {/* Right sidebar — full width on mobile, fixed 288px on desktop */}
+        <div className="w-full lg:w-72 space-y-4 shrink-0">
 
           {/* Status */}
           <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] p-5 space-y-4">

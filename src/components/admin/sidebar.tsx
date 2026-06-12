@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useAdminNav } from "@/lib/admin-nav-context";
 
 const NAV = [
   { href: "/admin/dashboard",  label: "Dashboard",  icon: (
@@ -31,9 +32,9 @@ const NAV = [
   )},
 ];
 
-export default function AdminSidebar() {
+function NavContent({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -42,7 +43,7 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[240px] bg-[#16181d] border-r border-[rgba(255,255,255,0.07)] flex flex-col z-40">
+    <>
       {/* Logo */}
       <div className="px-6 py-5 border-b border-[rgba(255,255,255,0.07)]">
         <span className="font-cormorant italic text-[22px] tracking-[-0.5px] text-[#e8e4df]">MoLuxury</span>
@@ -57,6 +58,7 @@ export default function AdminSidebar() {
             <Link
               key={href}
               href={href}
+              onClick={onNavClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] font-inter-tight text-[13px] transition-colors group ${
                 active
                   ? "bg-[#c9a96e]/10 text-[#c9a96e]"
@@ -91,6 +93,46 @@ export default function AdminSidebar() {
           Sign out
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function AdminSidebar() {
+  const { open, close } = useAdminNav();
+
+  return (
+    <>
+      {/* ── Desktop: always-visible fixed sidebar ── */}
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-[240px] bg-[#16181d] border-r border-[rgba(255,255,255,0.07)] flex-col z-40">
+        <NavContent />
+      </aside>
+
+      {/* ── Mobile: slide-in drawer ── */}
+      {/* Backdrop */}
+      <div
+        onClick={close}
+        className={`lg:hidden fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      />
+      {/* Drawer panel */}
+      <aside
+        className={`lg:hidden fixed left-0 top-0 bottom-0 w-[260px] bg-[#16181d] border-r border-[rgba(255,255,255,0.07)] flex flex-col z-50 transition-transform duration-300 ease-in-out ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Close button inside drawer */}
+        <button
+          onClick={close}
+          aria-label="Close menu"
+          className="absolute top-4 right-4 p-1.5 rounded-[6px] text-[#888078] hover:text-[#e8e4df] hover:bg-[rgba(255,255,255,0.06)] transition-colors cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+        </button>
+        <NavContent onNavClick={close} />
+      </aside>
+    </>
   );
 }

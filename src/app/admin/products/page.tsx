@@ -44,7 +44,7 @@ export default function AdminProducts() {
         }
       />
 
-      <div className="px-8 py-5 flex items-center gap-4 border-b border-[rgba(255,255,255,0.07)]">
+      <div className="px-4 sm:px-8 py-4 sm:py-5 flex items-center gap-3 sm:gap-4 flex-wrap border-b border-[rgba(255,255,255,0.07)]">
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -62,7 +62,7 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <div className="flex-1 px-8 py-6 overflow-y-auto">
+      <div className="flex-1 px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="w-6 h-6 border-2 border-[#c9a96e] border-t-transparent rounded-full animate-spin" />
@@ -72,7 +72,7 @@ export default function AdminProducts() {
             <p className="font-inter-tight text-[14px] text-[#888078]">No products found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {filtered.map(p => (
               <div key={p.id} className="group bg-[#16181d] rounded-[12px] overflow-hidden border border-[rgba(255,255,255,0.05)]">
                 <div className="relative aspect-[3/4] bg-[#1e2028]">

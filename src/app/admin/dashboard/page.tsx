@@ -38,13 +38,13 @@ export default function AdminDashboard() {
   return (
     <div className="flex flex-col flex-1">
       <AdminTopbar title="Dashboard" subtitle={new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })} />
-      <div className="flex-1 px-8 py-6 space-y-8 overflow-y-auto">
+      <div className="flex-1 px-4 sm:px-8 py-4 sm:py-6 space-y-6 sm:space-y-8 overflow-y-auto">
 
         {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {STATS.map(s => (
             <Link key={s.label} href={s.href}
-              className={`bg-[#16181d] border rounded-[12px] p-5 hover:border-[rgba(255,255,255,0.12)] transition-colors group ${
+              className={`bg-[#16181d] border rounded-[12px] p-4 sm:p-5 hover:border-[rgba(255,255,255,0.12)] transition-colors group ${
                 s.accent ? "border-[#c9a96e]/30" : "border-[rgba(255,255,255,0.07)]"
               }`}
             >
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Recent orders */}
           <div className="bg-[#16181d] rounded-[12px] border border-[rgba(255,255,255,0.07)] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">

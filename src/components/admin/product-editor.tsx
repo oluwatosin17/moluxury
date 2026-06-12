@@ -159,7 +159,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-8 py-8 space-y-10">
+      <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-8 sm:space-y-10">
 
         {/* Section 1 — Core Info */}
         <section className="space-y-5">
@@ -167,7 +167,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
             Core Info
           </h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2 space-y-1.5">
               <label className="font-inter-tight text-[11px] tracking-[1.5px] uppercase text-[#888078]">Product Name</label>
               <input
@@ -450,7 +450,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
         {/* Section 8 — Specifications */}
         <section className="space-y-4">
           <h2 className="font-inter-tight font-medium text-[12px] tracking-[2px] uppercase text-[#888078]">Specifications</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: "Texture",  value: texture,  set: setTexture,  placeholder: "e.g. Body Wave" },
               { label: "Cap Type", value: capType,  set: setCapType,  placeholder: "HD Transparent Lace" },
@@ -470,7 +470,7 @@ export default function ProductEditor({ product, categories }: ProductEditorProp
         </section>
 
         {/* Save buttons — the toggle above is the publish switch; Save respects it */}
-        <section className="flex items-center justify-between pt-4 border-t border-[rgba(255,255,255,0.07)]">
+        <section className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-[rgba(255,255,255,0.07)]">
           <div className="flex gap-3">
             {/* Secondary: always force-draft (quick unpublish without toggling) */}
             {published && (
