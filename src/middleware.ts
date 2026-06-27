@@ -30,14 +30,18 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession() decodes the JWT from the cookie locally — no network call.
+  // This keeps middleware well within Vercel Edge's execution budget.
+  // Full server-side validation still happens inside each API route via
+  // createAdminSupabaseClient() which calls the Supabase REST API directly.
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (!user) {
+  if (!session) {
     return NextResponse.redirect(new URL('/admin/login', request.url))
   }
 
-  if (!ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? '')) {
-    await supabase.auth.signOut()
+  const email = session.user?.email?.toLowerCase() ?? ''
+  if (!ADMIN_EMAILS.includes(email)) {
     return NextResponse.redirect(new URL('/admin/login?error=unauthorized', request.url))
   }
 
