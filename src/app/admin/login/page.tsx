@@ -16,15 +16,27 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const supabase = createClient();
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
-    const { error: authErr } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${baseUrl}/admin/auth/callback` },
-    });
-    setLoading(false);
-    if (authErr) { setError(authErr.message); return; }
-    setSent(true);
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError("Authentication is not configured. Please contact the site administrator.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+      const { error: authErr } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${baseUrl}/admin/auth/callback` },
+      });
+      if (authErr) { setError(authErr.message); return; }
+      setSent(true);
+    } catch {
+      setError("Unable to reach the authentication server. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
