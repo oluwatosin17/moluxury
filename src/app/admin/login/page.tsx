@@ -30,7 +30,14 @@ export default function AdminLoginPage() {
         email,
         options: { emailRedirectTo: `${baseUrl}/admin/auth/callback` },
       });
-      if (authErr) { setError(authErr.message); return; }
+      if (authErr) {
+        if (authErr.message.toLowerCase().includes("rate limit") || authErr.status === 429) {
+          setError("Too many login attempts. Please wait a few minutes before trying again.");
+        } else {
+          setError(authErr.message);
+        }
+        return;
+      }
       setSent(true);
     } catch {
       setError("Unable to reach the authentication server. Please check your connection and try again.");
