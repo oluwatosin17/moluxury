@@ -8,18 +8,13 @@ export default function AdminLoginPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [checking, setChecking] = useState(true);
   const router = useRouter();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (non-blocking)
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace("/admin/dashboard");
-      } else {
-        setChecking(false);
-      }
+      if (session) router.replace("/admin/dashboard");
     });
   }, [router]);
 
@@ -59,16 +54,6 @@ export default function AdminLoginPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-[#0e0f11] flex items-center justify-center">
-        <span className="font-cormorant italic text-[28px] tracking-[-1px] text-[#e8e4df] animate-pulse">
-          MoLuxury
-        </span>
-      </div>
-    );
   }
 
   return (
