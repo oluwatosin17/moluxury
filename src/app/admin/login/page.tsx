@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AdminLoginPage() {
@@ -7,14 +7,6 @@ export default function AdminLoginPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Redirect if already authenticated (non-blocking, full navigation)
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) window.location.href = "/admin/dashboard";
-    });
-  }, []);
 
   const searchParams = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search) : new URLSearchParams();
