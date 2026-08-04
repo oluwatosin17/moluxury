@@ -74,9 +74,24 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Login + auth callback are always public
-  const PUBLIC = ['/admin/login', '/admin/auth/callback']
-  if (PUBLIC.some(p => request.nextUrl.pathname.startsWith(p))) {
+  // Auth callback is always public
+  if (request.nextUrl.pathname.startsWith('/admin/auth/callback')) {
+    return NextResponse.next()
+  }
+
+  // Login page: if user is already a valid admin, redirect to dashboard
+  if (request.nextUrl.pathname.startsWith('/admin/login')) {
+    const token = getAccessToken(request)
+    if (token) {
+      const payload = decodeJwtPayload(token)
+      if (payload) {
+        const exp = typeof payload.exp === 'number' ? payload.exp : 0
+        const email = (typeof payload.email === 'string' ? payload.email : '').toLowerCase()
+        if ((!exp || Date.now() / 1000 <= exp) && email && ADMIN_EMAILS.includes(email)) {
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+        }
+      }
+    }
     return NextResponse.next()
   }
 
