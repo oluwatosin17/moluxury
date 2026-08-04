@@ -20,7 +20,9 @@ export async function GET(request: Request) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
+              // Only set on the redirect response — cookieStore.set() can
+              // throw in some Next.js contexts and kill the exchange
+              try { cookieStore.set(name, value, options) } catch { /* ok */ }
               redirectTo.cookies.set(name, value, options)
             })
           },
@@ -28,16 +30,17 @@ export async function GET(request: Request) {
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!error) {
-      return redirectTo
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (!error) {
+        return redirectTo
+      }
+      console.error('[auth/callback] Code exchange error:', error.message)
+    } catch (e) {
+      console.error('[auth/callback] Code exchange threw:', e)
     }
-
-    // Log the actual error so we can diagnose in Vercel runtime logs
-    console.error('[auth/callback] exchangeCodeForSession failed:', error.message)
   } else {
-    console.error('[auth/callback] No code parameter in URL')
+    console.error('[auth/callback] No code param in URL:', request.url)
   }
 
   return NextResponse.redirect(`${origin}/admin/login?error=auth_failed`)
