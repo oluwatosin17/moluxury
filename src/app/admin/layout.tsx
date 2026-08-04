@@ -1,12 +1,26 @@
+"use client";
+import { usePathname } from "next/navigation";
 import AdminSidebar from "@/components/admin/sidebar";
 import Script from "next/script";
 import { AdminNavProvider } from "@/lib/admin-nav-context";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isPublicPage = pathname === "/admin/login" || pathname.startsWith("/admin/auth/");
+
+  // Login and auth callback pages render without the sidebar
+  if (isPublicPage) {
+    return (
+      <div className="min-h-screen bg-[#0e0f11]" style={{ fontFamily: "var(--font-inter-tight)" }}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <AdminNavProvider>
       <div className="min-h-screen bg-[#0e0f11]" style={{ fontFamily: "var(--font-inter-tight)" }}>
-        <Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="beforeInteractive" />
+        <Script src="https://widget.cloudinary.com/v2.0/global/all.js" strategy="lazyOnload" />
         <AdminSidebar />
         {/* On mobile: no left margin (sidebar is an overlay drawer).
             On desktop: shift content right of the 240 px sidebar. */}
