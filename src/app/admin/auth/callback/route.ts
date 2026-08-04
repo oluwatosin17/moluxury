@@ -8,7 +8,6 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = cookies()
-    // Create the redirect response FIRST so we can attach cookies to it
     const redirectTo = NextResponse.redirect(`${origin}/admin/dashboard`)
 
     const supabase = createServerClient(
@@ -21,8 +20,6 @@ export async function GET(request: Request) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // Set on BOTH the cookie store and the redirect response
-              // so the browser receives the session cookies with the redirect
               cookieStore.set(name, value, options)
               redirectTo.cookies.set(name, value, options)
             })
@@ -32,7 +29,15 @@ export async function GET(request: Request) {
     )
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return redirectTo
+
+    if (!error) {
+      return redirectTo
+    }
+
+    // Log the actual error so we can diagnose in Vercel runtime logs
+    console.error('[auth/callback] exchangeCodeForSession failed:', error.message)
+  } else {
+    console.error('[auth/callback] No code parameter in URL')
   }
 
   return NextResponse.redirect(`${origin}/admin/login?error=auth_failed`)
